@@ -1,6 +1,6 @@
 export interface Student {
   id?: number
-  student_id: string // 学号
+  student_id?: string // 学号（可选）
   name: string // 姓名
   gender?: string // 性别
   birth_date?: string // 出生年月
@@ -20,7 +20,7 @@ export interface Student {
 }
 
 export interface StudentFormData {
-  student_id: string
+  student_id?: string // 学号（可选）
   name: string
   gender?: string
   birth_date?: string
@@ -37,7 +37,7 @@ export interface StudentFormData {
 
 export interface StudentListItem {
   id: number
-  student_id: string
+  student_id?: string // 学号（可选）
   name: string
   gender?: string
   birth_date?: string
@@ -60,7 +60,7 @@ export interface StudentQueryParams {
 }
 
 export interface StudentImportData {
-  student_id: string
+  student_id?: string // 学号（可选）
   name: string
   gender?: string
   birth_date?: string

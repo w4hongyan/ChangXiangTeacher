@@ -13,7 +13,7 @@
       label-position="left"
     >
       <el-form-item label="学号" prop="student_id">
-        <el-input v-model="form.student_id" placeholder="请输入学号" maxlength="20" />
+        <el-input v-model="form.student_id" placeholder="请输入学号（可选）" maxlength="20" />
       </el-form-item>
 
       <el-form-item label="姓名" prop="name">
@@ -147,7 +147,6 @@ const isEdit = computed(() => !!props.student?.id)
 
 const rules = {
   student_id: [
-    { required: true, message: '请输入学号', trigger: 'blur' },
     { min: 2, max: 20, message: '学号长度2-20位', trigger: 'blur' }
   ],
   name: [

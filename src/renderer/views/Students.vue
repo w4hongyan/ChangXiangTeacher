@@ -16,10 +16,25 @@
                   <el-icon><Plus /></el-icon>
                   添加学生
                 </el-button>
-                <el-button type="success" @click="handleImport">
-                  <el-icon><Upload /></el-icon>
-                  导入
-                </el-button>
+                <el-dropdown @command="handleImportCommand" trigger="click">
+                  <el-button type="success">
+                    <el-icon><Upload /></el-icon>
+                    导入
+                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="template">
+                        <el-icon><Document /></el-icon>
+                        下载导入模板
+                      </el-dropdown-item>
+                      <el-dropdown-item command="import">
+                        <el-icon><Upload /></el-icon>
+                        导入学生
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
                 <el-button @click="handleExport">
                   <el-icon><Download /></el-icon>
                   导出
@@ -167,6 +182,10 @@
             <div class="el-upload__tip">
               支持 .xlsx, .xls, .csv 格式文件
               <br />
+              <span style="color: #409eff; cursor: pointer;" @click="handleDownloadTemplate()">
+                点击这里下载导入模板
+              </span>
+              <br />
               请确保文件包含：学号、姓名、班级、性别、联系电话等列
             </div>
           </template>
@@ -187,7 +206,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Upload, Download, Search, Edit, Delete, UploadFilled } from '@element-plus/icons-vue'
+import { Plus, Upload, Download, Search, Edit, Delete, UploadFilled, ArrowDown, Document } from '@element-plus/icons-vue'
+import * as XLSX from 'xlsx'
 import Layout from './Layout.vue'
 import StudentForm from '../components/StudentForm.vue'
 import { useStudentStore } from '../stores/student'
@@ -231,9 +251,11 @@ const loadData = async () => {
   loading.value = true
   try {
     console.log('调用 fetchStudents 和 fetchClasses...')
+    // 使用JSON序列化清理响应式对象
+    const cleanSearchParams = JSON.parse(JSON.stringify(searchParams))
     await Promise.all([
       studentStore.fetchStudents({
-        ...searchParams,
+        ...cleanSearchParams,
         page: pagination.currentPage,
         page_size: pagination.pageSize
       }),
@@ -377,6 +399,98 @@ const handleFormSubmit = async (data: StudentFormData & { id?: number }) => {
   }
 }
 
+// 处理导入命令
+const handleImportCommand = (command: string) => {
+  switch (command) {
+    case 'template':
+      handleDownloadTemplate()
+      break
+    case 'import':
+      handleImport()
+      break
+  }
+}
+
+// 下载导入模板
+const handleDownloadTemplate = () => {
+  try {
+    // 创建模板数据
+    const templateData = [
+      [
+        '学号',
+        '姓名',
+        '性别',
+        '班级',
+        '出生日期',
+        '联系电话',
+        '家庭地址',
+        '备注'
+      ],
+      [
+        '2024001',
+        '张三',
+        '男',
+        '一年1班',
+        '2010-05-15',
+        '13800138000',
+        '北京市朝阳区主要街道123号',
+        '班长'
+      ],
+      [
+        '2024002',
+        '李四',
+        '女',
+        '一年1班',
+        '2010-08-22',
+        '13900139000',
+        '上海市浦东新区世纪大道456号',
+        '学习委员'
+      ],
+      [
+        '2024003',
+        '王五',
+        '男',
+        '一年2班',
+        '2010-03-10',
+        '15000150000',
+        '广州市天河区天河路789号',
+        ''
+      ]
+    ]
+    
+    // 创建工作簿
+    const workbook = XLSX.utils.book_new()
+    const worksheet = XLSX.utils.aoa_to_sheet(templateData)
+    
+    // 设置列宽
+    const colWidths = [
+      { wch: 12 }, // 学号
+      { wch: 10 }, // 姓名
+      { wch: 6 },  // 性别
+      { wch: 12 }, // 班级
+      { wch: 15 }, // 出生日期
+      { wch: 15 }, // 联系电话
+      { wch: 30 }, // 家庭地址
+      { wch: 15 }  // 备注
+    ]
+    worksheet['!cols'] = colWidths
+    
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(workbook, worksheet, '学生信息导入模板')
+    
+    // 生成文件名
+    const filename = '学生信息导入模板.xlsx'
+    
+    // 保存文件
+    XLSX.writeFile(workbook, filename)
+    
+    ElMessage.success(`模板下载成功：${filename}`)
+  } catch (error) {
+    console.error('下载模板失败:', error)
+    ElMessage.error('下载模板失败')
+  }
+}
+
 // 导入导出
 const handleImport = () => {
   importVisible.value = true
@@ -385,7 +499,9 @@ const handleImport = () => {
 
 const handleExport = async () => {
   try {
-    const result = await studentStore.exportStudents(searchParams)
+    // 使用JSON序列化清理响应式对象，避免"An object could not be cloned"错误
+    const cleanParams = JSON.parse(JSON.stringify(searchParams))
+    const result = await studentStore.exportStudents(cleanParams)
     if (result.success) {
       ElMessage.success('导出成功')
       // 这里可以添加文件下载逻辑
@@ -494,5 +610,21 @@ onMounted(() => {
 
 .upload-demo .el-upload-dragger {
   width: 100%;
+}
+
+.el-upload__tip {
+  color: #606266;
+  font-size: 12px;
+  margin-top: 7px;
+}
+
+.template-link {
+  color: #409eff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.template-link:hover {
+  color: #66b1ff;
 }
 </style>

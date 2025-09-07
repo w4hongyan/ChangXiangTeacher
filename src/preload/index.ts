@@ -26,6 +26,16 @@ declare global {
         import: (file: File) => Promise<any>
         export: (params?: any) => Promise<any>
       }
+      seating: {
+        getClassConfig: (classId: number) => Promise<any>
+        saveClassConfig: (data: any) => Promise<any>
+        getArrangement: (classId: number) => Promise<any>
+        assignStudent: (data: any) => Promise<any>
+        removeStudent: (data: any) => Promise<any>
+        swapStudents: (data: any) => Promise<any>
+        autoAssign: (classId: number, options?: any) => Promise<any>
+        saveArrangement: (classId: number) => Promise<any>
+      }
     }
   }
 }
@@ -53,6 +63,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getClasses: () => ipcRenderer.invoke('students:getClasses'),
     import: (file: File) => ipcRenderer.invoke('students:import', file),
     export: (params?: any) => ipcRenderer.invoke('students:export', params)
+  },
+  seating: {
+    getClassConfig: (classId: number) => ipcRenderer.invoke('seating:getClassConfig', classId),
+    saveClassConfig: (data: any) => ipcRenderer.invoke('seating:saveClassConfig', data),
+    getArrangement: (classId: number) => ipcRenderer.invoke('seating:getArrangement', classId),
+    assignStudent: (data: any) => ipcRenderer.invoke('seating:assignStudent', data),
+    removeStudent: (data: any) => ipcRenderer.invoke('seating:removeStudent', data),
+    swapStudents: (data: any) => ipcRenderer.invoke('seating:swapStudents', data),
+    autoAssign: (classId: number, options?: any) => ipcRenderer.invoke('seating:autoAssign', classId, options),
+    saveArrangement: (classId: number) => ipcRenderer.invoke('seating:saveArrangement', classId)
   }
 })
 

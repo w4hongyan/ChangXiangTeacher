@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { DatabaseManager } from './database'
 import { setupStudentHandlers } from './handlers/student'
+import { setupSeatingHandlers } from './handlers/seating'
 
 let mainWindow: BrowserWindow
 const dbManager = new DatabaseManager()
@@ -146,6 +147,9 @@ app.whenReady().then(() => {
 
   // 设置学生管理handlers
   setupStudentHandlers(dbManager)
+  
+  // 设置排位管理handlers
+  setupSeatingHandlers(dbManager)
 
   createWindow()
 

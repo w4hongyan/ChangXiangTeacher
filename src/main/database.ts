@@ -67,7 +67,7 @@ export class DatabaseManager {
       if (!exists) {
         return this.db.schema.createTable('students', (table) => {
           table.increments('id').primary()
-          table.string('student_id').unique().notNullable()
+          table.string('student_id').unique() // 学号可选，但如果提供则必须唯一
           table.string('name').notNullable()
           table.string('gender')
           table.date('birth_date')
@@ -98,6 +98,11 @@ export class DatabaseManager {
           table.integer('column').notNullable()
           table.string('seat_type').defaultTo('normal')
           table.timestamps(true, true)
+          
+          // 添加组合索引，确保一个学生在同一个班级中只能有一个座位
+          table.unique(['class_id', 'student_id'])
+          // 确保同一个班级中的同一个座位只能被一个学生占用
+          table.unique(['class_id', 'row', 'column'])
         })
       }
     })
@@ -147,11 +152,38 @@ export class DatabaseManager {
           table.integer('rows').defaultTo(6)
           table.integer('columns').defaultTo(8)
           table.json('seat_layout') // 自定义座位布局
+          table.string('numbering_mode').defaultTo('row-column') // 编号模式
+          table.string('numbering_direction').defaultTo('top') // 编号方向
           table.json('point_rules') // 积分规则配置
           table.timestamps(true, true)
         })
       }
     })
+
+    // 检查是否需要添加新字段（用于现有数据库的迁移）
+    const hasNumberingMode = await this.db.schema.hasColumn('class_configs', 'numbering_mode')
+    if (!hasNumberingMode) {
+      await this.db.schema.alterTable('class_configs', (table) => {
+        table.string('numbering_mode').defaultTo('row-column')
+        table.string('numbering_direction').defaultTo('top')
+      })
+    }
+    
+    // 检查并处理座位表的数据一致性（移除重复的学生座位记录）
+    try {
+      // 清除重复的学生座位记录（保留最新的记录）
+      await this.db.raw(`
+        DELETE FROM seats 
+        WHERE id NOT IN (
+          SELECT MIN(id) 
+          FROM seats 
+          WHERE student_id IS NOT NULL 
+          GROUP BY class_id, student_id
+        ) AND student_id IS NOT NULL
+      `)
+    } catch (error) {
+      console.log('清理重复座位记录时出错（正常）:', error)
+    }
   }
 
   async query(sql: string, params: any[] = []): Promise<any> {
