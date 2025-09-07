@@ -25,10 +25,33 @@
           </el-select>
         </div>
         <div class="actions">
-          <el-button type="success" @click="handleAutoAssign" :loading="loading">
-            <el-icon><Star /></el-icon>
-            自动分配
-          </el-button>
+          <el-dropdown @command="handleAutoAssignCommand" trigger="click">
+            <el-button type="success" :loading="loading">
+              <el-icon><Star /></el-icon>
+              自动分配
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="sequential">
+                  <el-icon><Sort /></el-icon>
+                  靠台优先平衡分配
+                </el-dropdown-item>
+                <el-dropdown-item command="balanced-row">
+                  <el-icon><Grid /></el-icon>
+                  按行平衡（靠台优先）
+                </el-dropdown-item>
+                <el-dropdown-item command="balanced-column">
+                  <el-icon><Grid /></el-icon>
+                  按列平衡（靠台优先）
+                </el-dropdown-item>
+                <el-dropdown-item command="podium-priority">
+                  <el-icon><LocationInformation /></el-icon>
+                  强制靠台优先
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
           <el-button type="primary" @click="handleSaveArrangement" :loading="loading">
             <el-icon><DocumentAdd /></el-icon>
             保存排位
@@ -61,48 +84,7 @@
     </div>
 
     <div class="arrangement-content">
-      <!-- 座位区域 -->
-      <div class="seating-area" ref="seatingAreaRef">
-        <div class="classroom">
-          <!-- 座位布局 -->
-          <div class="classroom-layout">
-            <!-- 座位区域 -->
-            <div class="seats-grid" v-if="arrangement?.layout">
-              <div
-                v-for="(row, rowIndex) in arrangement.layout.seats"
-                :key="rowIndex"
-                class="seat-row"
-              >
-                <div
-                  v-for="(seat, colIndex) in row"
-                  :key="colIndex"
-                  :class="getSeatClass(seat, rowIndex, colIndex)"
-                  @click="handleSeatClick(rowIndex + 1, colIndex + 1)"
-                  @drop="handleDrop($event, rowIndex + 1, colIndex + 1)"
-                  @dragover="handleDragOver"
-                >
-                  <div v-if="seat.type === 'seat'" class="seat-content">
-                    <div class="seat-number">{{ getSeatNumber(rowIndex, colIndex) }}</div>
-                    <div v-if="seat.student_name" class="student-info">
-                      <div class="student-name">{{ seat.student_name }}</div>
-                    </div>
-                    <div v-else class="empty-seat">空座位</div>
-                  </div>
-                  <div v-else-if="seat.type === 'aisle'" class="aisle-content">过道</div>
-                  <div v-else-if="seat.type === 'podium'" class="podium-content">讲台</div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 讲台区域（右侧） -->
-            <div class="podium-area">
-              <div class="podium">讲台</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 学生列表 -->
+      <!-- 学生列表（上方） -->
       <div class="students-panel">
         <div class="panel-header">
           <h4>未分配学生</h4>
@@ -118,6 +100,7 @@
             class="student-item"
             draggable="true"
             @dragstart="handleDragStart($event, student)"
+            @dragend="handleDragEnd"
           >
             <div class="student-avatar">
               <el-icon><User /></el-icon>
@@ -138,6 +121,62 @@
           </div>
         </div>
       </div>
+      
+      <!-- 座位区域（下方） -->
+      <div class="seating-area" ref="seatingAreaRef">
+        <div class="classroom">
+          <!-- 座位布局 -->
+          <div class="classroom-layout">
+            <!-- 座位区域 -->
+            <div class="seats-grid" v-if="arrangement?.layout">
+              <div
+                v-for="(row, rowIndex) in arrangement.layout.seats"
+                :key="rowIndex"
+                class="seat-row"
+              >
+                <div
+                  v-for="(seat, colIndex) in row"
+                  :key="colIndex"
+                  :class="[
+                    getSeatClass(seat, rowIndex, colIndex),
+                    {
+                      'drag-over': dragOverSeat?.row === rowIndex + 1 && dragOverSeat?.column === colIndex + 1,
+                      'drag-valid': isDragging && seat.type === 'seat',
+                      'drag-invalid': isDragging && seat.type !== 'seat'
+                    }
+                  ]"
+                  @click="handleSeatClick(rowIndex + 1, colIndex + 1)"
+                  @drop="handleDrop($event, rowIndex + 1, colIndex + 1)"
+                  @dragover="handleDragOver"
+                  @dragenter="handleDragEnter($event, rowIndex + 1, colIndex + 1)"
+                  @dragleave="handleDragLeave"
+                >
+                  <div v-if="seat.type === 'seat'" class="seat-content">
+                    <div class="seat-number">{{ getSeatNumber(rowIndex, colIndex) }}</div>
+                    <div 
+                      v-if="seat.student_name" 
+                      class="student-info"
+                      draggable="true"
+                      @dragstart="handleSeatDragStart($event, rowIndex + 1, colIndex + 1, seat)"
+                      @dragend="handleDragEnd"
+                    >
+                      <div class="student-name">{{ seat.student_name }}</div>
+                    </div>
+                    <div v-else class="empty-seat">空座位</div>
+                  </div>
+                  <div v-else-if="seat.type === 'aisle'" class="aisle-content">过道</div>
+                  <div v-else-if="seat.type === 'podium'" class="podium-content">讲台</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 讲台区域（右侧） -->
+            <div class="podium-area">
+              <div class="podium">讲台</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -145,7 +184,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Star, Delete, UserFilled, User, DocumentAdd, Download, ArrowDown, Document, Picture } from '@element-plus/icons-vue'
+import { Star, Delete, UserFilled, User, DocumentAdd, Download, ArrowDown, Document, Picture, Sort, Grid, LocationInformation } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
 import html2canvas from 'html2canvas'
 import type { SeatingArrangement, SeatPosition, UnassignedStudent } from '../types/seating'
@@ -160,7 +199,8 @@ interface Props {
 interface Emits {
   (e: 'assign-student', data: { student_id: number; row: number; column: number }): void
   (e: 'remove-student', data: { row: number; column: number }): void
-  (e: 'auto-assign', data: { numberingMode: string; numberingDirection: string }): void
+  (e: 'swap-students', data: { seat1: { row: number; column: number }; seat2: { row: number; column: number } }): void
+  (e: 'auto-assign', data: { numberingMode: string; numberingDirection: string; strategy?: string }): void
   (e: 'clear-all'): void
   (e: 'save-arrangement'): void
 }
@@ -169,6 +209,10 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 let draggedStudent: UnassignedStudent | null = null
+let draggedSeat: { row: number; column: number; student: any } | null = null
+let dragSource: 'unassigned' | 'seat' = 'unassigned'
+const isDragging = ref(false)
+const dragOverSeat = ref<{ row: number; column: number } | null>(null)
 
 // DOM引用
 const seatingAreaRef = ref<HTMLElement>()
@@ -329,11 +373,35 @@ const handleSeatClick = async (row: number, column: number) => {
   }
 }
 
-// 开始拖拽学生
+// 开始拖拽学生（从未分配列表）
 const handleDragStart = (event: DragEvent, student: UnassignedStudent) => {
   draggedStudent = student
+  draggedSeat = null
+  dragSource = 'unassigned'
+  isDragging.value = true
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', student.name)
+  }
+}
+
+// 开始拖拽学生（从座位）
+const handleSeatDragStart = (event: DragEvent, row: number, column: number, seat: any) => {
+  const student = getStudentInSeat(row, column)
+  if (!student) return
+  
+  draggedStudent = null
+  draggedSeat = { row, column, student }
+  dragSource = 'seat'
+  isDragging.value = true
+  
+  // 添加拖拽样式
+  const target = event.target as HTMLElement
+  target.classList.add('dragging')
+  
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', student.name)
   }
 }
 
@@ -345,11 +413,37 @@ const handleDragOver = (event: DragEvent) => {
   }
 }
 
+// 拖拽进入座位
+const handleDragEnter = (event: DragEvent, row: number, column: number) => {
+  event.preventDefault()
+  const seat = props.arrangement?.layout.seats[row - 1]?.[column - 1]
+  if (seat?.type === 'seat') {
+    dragOverSeat.value = { row, column }
+  }
+}
+
+// 拖拽离开座位
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault()
+  dragOverSeat.value = null
+}
+
+// 拖拽结束
+const handleDragEnd = (event: DragEvent) => {
+  isDragging.value = false
+  dragOverSeat.value = null
+  
+  // 移除所有拖拽样式
+  const target = event.target as HTMLElement
+  target.classList.remove('dragging')
+  document.querySelectorAll('.dragging').forEach(el => {
+    el.classList.remove('dragging')
+  })
+}
+
 // 放置学生到座位
 const handleDrop = (event: DragEvent, row: number, column: number) => {
   event.preventDefault()
-  
-  if (!draggedStudent) return
   
   const seat = props.arrangement?.layout.seats[row - 1]?.[column - 1]
   if (!seat || seat.type !== 'seat') {
@@ -358,25 +452,95 @@ const handleDrop = (event: DragEvent, row: number, column: number) => {
   }
   
   const existingStudent = getStudentInSeat(row, column)
-  if (existingStudent) {
-    ElMessage.warning('该座位已被占用')
-    return
+  
+  if (dragSource === 'unassigned' && draggedStudent) {
+    // 从未分配列表拖拽到座位
+    if (existingStudent) {
+      ElMessage.warning('该座位已被占用')
+      return
+    }
+    
+    emit('assign-student', {
+      student_id: draggedStudent.id,
+      row,
+      column
+    })
+  } else if (dragSource === 'seat' && draggedSeat) {
+    // 从座位拖拽到另一个座位
+    if (draggedSeat.row === row && draggedSeat.column === column) {
+      // 拖拽到同一个座位，不做任何操作
+      return
+    }
+    
+    if (existingStudent) {
+      // 目标座位有人，交换位置
+      emit('swap-students', {
+        seat1: { row: draggedSeat.row, column: draggedSeat.column },
+        seat2: { row, column }
+      })
+      ElMessage.success(`${draggedSeat.student.name} 和 ${existingStudent.name} 已交换位置`)
+    } else {
+      // 目标座位空着，移动学生
+      emit('assign-student', {
+        student_id: draggedSeat.student.id,
+        row,
+        column
+      })
+      emit('remove-student', { 
+        row: draggedSeat.row, 
+        column: draggedSeat.column 
+      })
+    }
   }
   
-  emit('assign-student', {
-    student_id: draggedStudent.id,
-    row,
-    column
-  })
-  
+  // 清理拖拽状态
+  isDragging.value = false
+  dragOverSeat.value = null
   draggedStudent = null
+  draggedSeat = null
+  
+  // 移除所有拖拽样式
+  document.querySelectorAll('.dragging').forEach(el => {
+    el.classList.remove('dragging')
+  })
 }
 
-// 自动分配座位
+// 处理自动分配命令
+const handleAutoAssignCommand = (command: string) => {
+  let strategy = 'sequential' // 默认策略
+  let useNumberingMode = numberingMode.value
+  let useNumberingDirection = numberingDirection.value
+  
+  switch (command) {
+    case 'sequential':
+      strategy = 'sequential'
+      break
+    case 'balanced-row':
+      strategy = 'balanced-row'
+      break
+    case 'balanced-column':
+      strategy = 'balanced-column'
+      break
+    case 'podium-priority':
+      strategy = 'podium-priority'
+      // 靠台优先分配自动使用靠台S形模式
+      useNumberingMode = 'podium-s'
+      break
+  }
+  
+  emit('auto-assign', {
+    numberingMode: useNumberingMode,
+    numberingDirection: useNumberingDirection,
+    strategy
+  })
+}
+
+// 自动分配座位（兼容原有接口）
 const handleAutoAssign = () => {
   emit('auto-assign', {
     numberingMode: numberingMode.value,
-    numberingDirection: numberingDirection.value
+    numberingDirection: numberingDirection.value,
+    strategy: 'sequential'
   })
 }
 
@@ -450,88 +614,136 @@ const handleExportExcel = () => {
     }
 
     const className = props.arrangement.class_name || '未知班级'
-    const layout = props.arrangement.layout.seats
-    const rows = layout.length
-    const cols = layout[0]?.length || 0
-
+    
     // 创建工作簿
     const workbook = XLSX.utils.book_new()
     
-    // 座位安排工作表
-    const seatingData: any[][] = []
-    
-    // 标题行
-    seatingData.push([`${className} 座位安排表`])
-    seatingData.push([])
-    
-    // 统计信息
-    seatingData.push(['统计信息'])
-    seatingData.push(['总学生数:', props.arrangement.total_students || 0])
-    seatingData.push(['已分配:', props.arrangement.assigned_students || 0])
-    seatingData.push(['未分配:', (props.arrangement.total_students || 0) - (props.arrangement.assigned_students || 0)])
-    seatingData.push(['编号模式:', getNumberingModeText()])
-    seatingData.push(['编号方向:', numberingDirection.value === 'top' ? '从上开始' : '从下开始'])
-    seatingData.push([])
-    
-    // 座位布局
-    seatingData.push(['座位布局'])
-    
-    // 添加讲台标识
-    const headerRow = new Array(cols + 1).fill('')
-    headerRow[cols] = '讲台'
-    seatingData.push(headerRow)
-    
-    // 添加座位数据
-    for (let r = 0; r < rows; r++) {
-      const row: any[] = []
-      for (let c = 0; c < cols; c++) {
-        const seat = layout[r][c]
-        if (seat.type === 'seat') {
-          const seatNumber = getSeatNumber(r, c)
-          const studentName = seat.student_name || ''
-          row.push(studentName ? `${seatNumber}: ${studentName}` : `${seatNumber}: [empty]`)
-        } else if (seat.type === 'aisle') {
-          row.push('[aisle]')
-        } else {
-          row.push('')
-        }
-      }
-      row.push('') // 讲台列
-      seatingData.push(row)
-    }
-    
-    seatingData.push([])
-    
-    // 学生名单
-    seatingData.push(['已分配学生名单'])
-    seatingData.push(['座位号', '学生姓名', '行', '列'])
-    
+    // 获取已分配学生数据并按座位号排序
+    const assignedStudents = []
     if (props.arrangement.students) {
       props.arrangement.students.forEach(student => {
         const seatNumber = getSeatNumber(student.row - 1, student.column - 1)
-        seatingData.push([seatNumber, student.name, student.row, student.column])
+        assignedStudents.push({
+          seatNumber: parseInt(seatNumber) || 999, // 转为数字便于排序，无效座位号排在最后
+          seatNumberText: seatNumber,
+          name: student.name,
+          row: student.row,
+          column: student.column
+        })
       })
     }
     
-    if (props.arrangement.unassigned_students?.length) {
-      seatingData.push([])
-      seatingData.push(['未分配学生名单'])
-      seatingData.push(['学生姓名', '学号', '性别'])
-      
-      props.arrangement.unassigned_students.forEach(student => {
-        seatingData.push([student.name, student.student_id || '', student.gender || ''])
-      })
-    }
+    // 按座位号从小到大排序
+    assignedStudents.sort((a, b) => a.seatNumber - b.seatNumber)
+    
+    // 准备Excel数据
+    const excelData = []
+    
+    // 添加标题
+    excelData.push([`${className} 座位安排表`])
+    excelData.push([]) // 空行
+    
+    // 添加统计信息
+    excelData.push(['统计信息'])
+    excelData.push(['总学生数', props.arrangement.total_students || 0])
+    excelData.push(['已分配', props.arrangement.assigned_students || 0])
+    excelData.push(['未分配', (props.arrangement.total_students || 0) - (props.arrangement.assigned_students || 0)])
+    excelData.push(['编号模式', getNumberingModeText()])
+    excelData.push(['编号方向', numberingDirection.value === 'top' ? '从上开始' : '从下开始'])
+    excelData.push([]) // 空行
+    
+    // 添加学生名单表头
+    excelData.push(['已分配学生名单'])
+    excelData.push(['序号', '座位号', '学生姓名', '行', '列'])
+    
+    // 添加学生数据
+    assignedStudents.forEach((student, index) => {
+      excelData.push([
+        index + 1,
+        student.seatNumberText,
+        student.name,
+        student.row,
+        student.column
+      ])
+    })
     
     // 创建工作表
-    const worksheet = XLSX.utils.aoa_to_sheet(seatingData)
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData)
     
     // 设置列宽
-    const colWidths = []
-    for (let i = 0; i < cols + 1; i++) {
-      colWidths.push({ wch: 15 })
+    worksheet['!cols'] = [
+      { wch: 8 },  // 序号
+      { wch: 12 }, // 座位号
+      { wch: 15 }, // 学生姓名
+      { wch: 8 },  // 行
+      { wch: 8 }   // 列
+    ]
+    
+    // 设置样式和边框
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:E1')
+    
+    // 遍历所有单元格添加样式
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
+        if (!worksheet[cellAddress]) worksheet[cellAddress] = { t: 's', v: '' }
+        
+        // 基础样式
+        const cellStyle = {
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          font: { name: '微软雅黑', size: 11 }
+        }
+        
+        // 标题行样式（第一行）
+        if (R === 0) {
+          cellStyle.font = { name: '微软雅黑', size: 14, bold: true }
+          cellStyle.fill = { fgColor: { rgb: 'E7F4FF' } }
+        }
+        // 统计信息标题行样式
+        else if (R === 2) {
+          cellStyle.font = { name: '微软雅黑', size: 12, bold: true }
+          cellStyle.fill = { fgColor: { rgb: 'F0F9FF' } }
+        }
+        // 学生名单标题行样式
+        else if (excelData[R] && excelData[R][0] === '已分配学生名单') {
+          cellStyle.font = { name: '微软雅黑', size: 12, bold: true }
+          cellStyle.fill = { fgColor: { rgb: 'F0F9FF' } }
+        }
+        // 表头样式
+        else if (excelData[R] && excelData[R][0] === '序号') {
+          cellStyle.font = { name: '微软雅黑', size: 11, bold: true }
+          cellStyle.fill = { fgColor: { rgb: 'F5F5F5' } }
+        }
+        // 数据行样式（奇偶行不同背景色）
+        else if (R > 0 && excelData[R] && typeof excelData[R][0] === 'number') {
+          if (excelData[R][0] % 2 === 0) {
+            cellStyle.fill = { fgColor: { rgb: 'FAFAFA' } }
+          }
+        }
+        
+        worksheet[cellAddress].s = cellStyle
+      }
     }
-    worksheet['!cols'] = colWidths
+    
+    // 合并标题单元格
+    worksheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // 标题行合并
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } }, // 统计信息标题合并
+    ]
+    
+    // 查找学生名单标题行位置并合并
+    for (let i = 0; i < excelData.length; i++) {
+      if (excelData[i] && excelData[i][0] === '已分配学生名单') {
+        worksheet['!merges'].push({ s: { r: i, c: 0 }, e: { r: i, c: 4 } })
+        break
+      }
+    }
     
     // 添加到工作簿
     XLSX.utils.book_append_sheet(workbook, worksheet, '座位安排')
@@ -545,7 +757,7 @@ const handleExportExcel = () => {
     // 保存文件
     XLSX.writeFile(workbook, filename)
     
-    ElMessage.success(`Excel导出成功：${filename}`)
+    ElMessage.success(`Excel导出成功：${filename}（共${assignedStudents.length}名学生）`)
   } catch (error) {
     console.error('Excel导出失败:', error)
     ElMessage.error('导出Excel失败')
@@ -562,20 +774,22 @@ const handleExportImage = async () => {
 
     const className = props.arrangement?.class_name || '未知班级'
     
-    // 临时添加标题元素
+    // 临时添加标题元素（放在底部）
     const titleElement = document.createElement('div')
     titleElement.style.cssText = `
       position: absolute;
-      top: 10px;
-      left: 20px;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
       font-size: 18px;
       font-weight: bold;
       color: #333;
       background: white;
-      padding: 5px 10px;
+      padding: 8px 16px;
       border-radius: 4px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       z-index: 10;
+      white-space: nowrap;
     `
     titleElement.textContent = `${className} 座位安排`
     seatingAreaRef.value.appendChild(titleElement)
@@ -695,9 +909,118 @@ const getNumberingModeText = () => {
 .arrangement-content {
   flex: 1;
   display: flex;
+  flex-direction: column;
   gap: 20px;
   padding: 20px;
   background: #f5f7fa;
+}
+
+.students-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  max-height: 200px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.panel-header h4 {
+  margin: 0;
+  color: #333;
+}
+
+.students-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.student-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  cursor: move;
+  transition: all 0.2s;
+  min-width: 120px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.student-item:hover {
+  background: #f5f7fa;
+  border-color: #409eff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+}
+
+.student-item:active {
+  opacity: 0.8;
+  transform: translateY(0);
+}
+
+.student-item.dragging {
+  opacity: 0.6;
+  transform: rotate(-2deg) scale(0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.student-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e7f4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #409eff;
+  font-size: 12px;
+}
+
+.student-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-name {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 1px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-id {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-gender {
+  flex-shrink: 0;
+}
+
+.empty-students {
+  padding: 20px 0;
+  text-align: center;
+  width: 100%;
 }
 
 .seating-area {
@@ -707,6 +1030,7 @@ const getNumberingModeText = () => {
   padding: 20px;
   overflow: auto;
   position: relative;
+  min-height: 400px;
 }
 
 .classroom {
@@ -812,6 +1136,57 @@ const getNumberingModeText = () => {
 
 .student-info {
   text-align: center;
+  cursor: move;
+  transition: all 0.2s;
+  padding: 2px;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.student-info:hover {
+  background: rgba(64, 158, 255, 0.15);
+  border: 1px dashed #409eff;
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+.student-info:active {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+
+.student-info.dragging {
+  opacity: 0.5;
+  transform: rotate(3deg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 拖拽状态下的座位样式 */
+.seat-cell.drag-over {
+  background: rgba(64, 158, 255, 0.2) !important;
+  border-color: #409eff !important;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.4);
+  animation: dragPulse 1s infinite;
+}
+
+.seat-cell.drag-valid {
+  border-style: dashed;
+  border-color: #67c23a;
+}
+
+.seat-cell.drag-invalid {
+  border-style: dashed;
+  border-color: #f56c6c;
+  opacity: 0.5;
+}
+
+@keyframes dragPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.2);
+  }
 }
 
 .student-name {
@@ -836,83 +1211,5 @@ const getNumberingModeText = () => {
   color: #999;
 }
 
-.students-panel {
-  width: 280px;
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-}
 
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.panel-header h4 {
-  margin: 0;
-  color: #333;
-}
-
-.students-list {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.student-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid #eee;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  cursor: move;
-  transition: all 0.2s;
-}
-
-.student-item:hover {
-  background: #f5f7fa;
-  border-color: #409eff;
-}
-
-.student-item:active {
-  opacity: 0.7;
-}
-
-.student-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #e7f4ff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #409eff;
-}
-
-.student-details {
-  flex: 1;
-}
-
-.student-name {
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 2px;
-}
-
-.student-id {
-  font-size: 12px;
-  color: #999;
-}
-
-.empty-students {
-  padding: 40px 0;
-  text-align: center;
-}
 </style>

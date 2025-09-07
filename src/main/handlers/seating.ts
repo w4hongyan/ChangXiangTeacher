@@ -203,7 +203,7 @@ export function setupSeatingHandlers(db: DatabaseManager) {
 
       // 构建学生座位映射
       const studentsInSeats = seats.filter(seat => seat.student_id).map(seat => ({
-        id: seat.student_id,
+        id: parseInt(seat.student_id.toString()), // 确保返回数字类型
         name: seat.student_name,
         student_id: seat.student_id,
         gender: seat.gender,
@@ -213,17 +213,38 @@ export function setupSeatingHandlers(db: DatabaseManager) {
       }))
 
       // 找出未分配座位的学生
-      const assignedStudentIds = new Set(studentsInSeats.map(s => s.id))
+      // 根据座位表中的student_id(学号)查找对应的学生
+      const assignedStudentIds = new Set<number>()
+      const realStudentsInSeats: any[] = []
+      
+      seats.filter(seat => seat.student_id).forEach(seat => {
+        // 根据座位表中的student_id(学号)查找对应的学生
+        // 注意：座位表的student_id存储的是学生的学号，需要与学生表的student_id字段匹配
+        const student = allStudents.find(s => s.student_id === seat.student_id)
+        if (student) {
+          assignedStudentIds.add(student.id)
+          realStudentsInSeats.push({
+            id: student.id,
+            name: student.name,
+            student_id: student.student_id,
+            gender: student.gender,
+            row: seat.row,
+            column: seat.column,
+            seat_id: seat.id
+          })
+        }
+      })
+      
       const unassignedStudents = allStudents.filter(student => !assignedStudentIds.has(student.id))
 
       const result = {
         class_id: classId,
         class_name: `${classInfo.grade}${classInfo.class_number}班`,
         layout: layoutObj,
-        students: studentsInSeats,
+        students: realStudentsInSeats,  // 使用新的数据
         unassigned_students: unassignedStudents,
         total_students: allStudents.length,
-        assigned_students: studentsInSeats.length
+        assigned_students: realStudentsInSeats.length  // 使用新的数据
       }
 
       return { success: true, data: result }
@@ -248,8 +269,14 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         [data.class_id, data.row, data.column]
       )
 
+      // 检查学生当前的座位
+      const currentStudentSeat = await db.get(
+        'SELECT id, row, column FROM seats WHERE class_id = ? AND student_id = ?',
+        [data.class_id, data.student_id]
+      )
+
       if (existingSeat) {
-        if (existingSeat.student_id) {
+        if (existingSeat.student_id && existingSeat.student_id !== data.student_id) {
           return { success: false, error: '该座位已被占用' }
         }
         
@@ -345,7 +372,11 @@ export function setupSeatingHandlers(db: DatabaseManager) {
   ipcMain.handle('seating:swapStudents', handleSwapStudents)
 
   // 自动分配座位
-  const handleAutoAssign = async (_: IpcMainInvokeEvent, classId: number, options?: { numberingMode: string; numberingDirection: string }) => {
+  const handleAutoAssign = async (_: IpcMainInvokeEvent, classId: number, options?: { 
+    numberingMode: string; 
+    numberingDirection: string;
+    strategy?: string;
+  }) => {
     try {
       // 获取班级配置
       const config = await db.get('SELECT * FROM class_configs WHERE class_id = ?', [classId])
@@ -353,9 +384,10 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         return { success: false, error: '请先设置座位布局' }
       }
 
-      // 获取编号模式和方向，优先使用传入的参数，否则使用保存的配置
+      // 获取编号模式、方向和分配策略
       const numberingMode = options?.numberingMode || config.numbering_mode || 'row-column'
       const numberingDirection = options?.numberingDirection || config.numbering_direction || 'top'
+      const strategy = options?.strategy || 'sequential'
 
       // 清除现有座位分配
       await db.run('UPDATE seats SET student_id = NULL WHERE class_id = ?', [classId])
@@ -397,38 +429,36 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         }
       }
 
-      // 总是根据编号模式对座位进行排序（从1号开始）
-      availableSeats.sort((a, b) => {
-        const aNumber = getSeatNumber(a.rowIndex, a.colIndex, seatLayoutArray || [], numberingMode, numberingDirection)
-        const bNumber = getSeatNumber(b.rowIndex, b.colIndex, seatLayoutArray || [], numberingMode, numberingDirection)
-        return aNumber - bNumber
-      })
-
-      // 自动分配学生到座位
-      for (let i = 0; i < Math.min(students.length, availableSeats.length); i++) {
-        const student = students[i]
-        const seat = availableSeats[i]
-        
-        // 检查座位是否存在
-        const existingSeat = await db.get(
-          'SELECT id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
-          [classId, seat.row, seat.column]
-        )
-
-        if (existingSeat) {
-          await db.run(
-            'UPDATE seats SET student_id = ? WHERE id = ?',
-            [student.id, existingSeat.id]
-          )
-        } else {
-          await db.run(
-            'INSERT INTO seats (class_id, student_id, row, column) VALUES (?, ?, ?, ?)',
-            [classId, student.id, seat.row, seat.column]
-          )
-        }
+      // 按不同策略分配学生
+      let assignedCount = 0
+      
+      switch (strategy) {
+        case 'sequential':
+          // 顺序分配：按编号顺序分配，同时考虑靠台优先
+          assignedCount = await assignStudentsWithPodiumPriority(students, availableSeats, seatLayoutArray, numberingMode, numberingDirection, classId, db)
+          break
+          
+        case 'balanced-row':
+          // 按行平均分配：保持行平衡，同时靠台优先
+          assignedCount = await assignStudentsBalancedByRowWithPodium(students, availableSeats, seatLayoutArray, classId, db)
+          break
+          
+        case 'balanced-column':
+          // 按列平均分配：保持列平衡，同时靠台优先
+          assignedCount = await assignStudentsBalancedByColumnWithPodium(students, availableSeats, seatLayoutArray, classId, db)
+          break
+          
+        case 'podium-priority':
+          // 靠台优先分配：强制使用靠台优先算法
+          assignedCount = await assignStudentsWithPodiumPriority(students, availableSeats, seatLayoutArray, 'podium-s', numberingDirection, classId, db)
+          break
+          
+        default:
+          // 默认使用靠台优先平衡分配
+          assignedCount = await assignStudentsWithPodiumPriority(students, availableSeats, seatLayoutArray, numberingMode, numberingDirection, classId, db)
       }
 
-      return { success: true, data: { assigned: Math.min(students.length, availableSeats.length) } }
+      return { success: true, data: { assigned: assignedCount } }
     } catch (error) {
       console.error('自动分配座位失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '自动分配座位失败' }
@@ -566,4 +596,233 @@ export function setupSeatingHandlers(db: DatabaseManager) {
     }
   }
   ipcMain.handle('seating:saveArrangement', handleSaveSeatingArrangement)
+}
+
+// 辅助函数：靠台优先平衡分配算法
+async function assignStudentsWithPodiumPriority(
+  students: any[], 
+  availableSeats: any[], 
+  seatLayoutArray: any[][],
+  numberingMode: string,
+  numberingDirection: string,
+  classId: number, 
+  db: any
+): Promise<number> {
+  // 计算每个座位到讲台的距离分数（越小越靠近讲台）
+  const seatsWithScore = availableSeats.map(seat => {
+    const podiumScore = calculatePodiumDistance(seat, seatLayoutArray)
+    const balanceScore = calculateBalanceScore(seat, availableSeats)
+    
+    return {
+      ...seat,
+      podiumScore,
+      balanceScore,
+      // 综合评分：靠台距离权重70%，平衡性权重30%
+      totalScore: podiumScore * 0.7 + balanceScore * 0.3
+    }
+  })
+  
+  // 按综合评分排序（评分越小越优）
+  seatsWithScore.sort((a, b) => a.totalScore - b.totalScore)
+  
+  return await assignStudentsSequentially(students, seatsWithScore, classId, db)
+}
+
+// 辅助函数：按行平均分配（靠台优先）
+async function assignStudentsBalancedByRowWithPodium(
+  students: any[], 
+  availableSeats: any[], 
+  seatLayoutArray: any[][], 
+  classId: number, 
+  db: any
+): Promise<number> {
+  // 按行分组座位
+  const seatsByRow = new Map<number, any[]>()
+  
+  availableSeats.forEach(seat => {
+    if (!seatsByRow.has(seat.row)) {
+      seatsByRow.set(seat.row, [])
+    }
+    seatsByRow.get(seat.row)!.push(seat)
+  })
+  
+  // 对每行座位按靠台距离排序
+  seatsByRow.forEach(seats => {
+    seats.forEach(seat => {
+      seat.podiumScore = calculatePodiumDistance(seat, seatLayoutArray)
+    })
+    seats.sort((a, b) => a.podiumScore - b.podiumScore)
+  })
+  
+  // 按行到讲台的平均距离排序（靠讲台的行优先）
+  const rows = Array.from(seatsByRow.keys()).sort((a, b) => {
+    const aAvgDistance = seatsByRow.get(a)!.reduce((sum, seat) => sum + seat.podiumScore, 0) / seatsByRow.get(a)!.length
+    const bAvgDistance = seatsByRow.get(b)!.reduce((sum, seat) => sum + seat.podiumScore, 0) / seatsByRow.get(b)!.length
+    return aAvgDistance - bAvgDistance
+  })
+  
+  const totalRows = rows.length
+  const studentsPerRow = Math.ceil(students.length / totalRows)
+  
+  let assignedCount = 0
+  let studentIndex = 0
+  
+  // 按行平均分配，优先填满靠讲台的行
+  for (const row of rows) {
+    const rowSeats = seatsByRow.get(row)!
+    const seatsToFill = Math.min(studentsPerRow, rowSeats.length, students.length - studentIndex)
+    
+    for (let i = 0; i < seatsToFill; i++) {
+      if (studentIndex >= students.length) break
+      
+      const student = students[studentIndex]
+      const seat = rowSeats[i] // 已按靠台距离排序
+      
+      if (await assignSingleStudent(student, seat, classId, db)) {
+        assignedCount++
+      }
+      studentIndex++
+    }
+  }
+  
+  return assignedCount
+}
+
+// 辅助函数：按列平均分配（靠台优先）
+async function assignStudentsBalancedByColumnWithPodium(
+  students: any[], 
+  availableSeats: any[], 
+  seatLayoutArray: any[][], 
+  classId: number, 
+  db: any
+): Promise<number> {
+  // 按列分组座位
+  const seatsByColumn = new Map<number, any[]>()
+  
+  availableSeats.forEach(seat => {
+    if (!seatsByColumn.has(seat.column)) {
+      seatsByColumn.set(seat.column, [])
+    }
+    seatsByColumn.get(seat.column)!.push(seat)
+  })
+  
+  // 对每列座位按靠台距离排序
+  seatsByColumn.forEach(seats => {
+    seats.forEach(seat => {
+      seat.podiumScore = calculatePodiumDistance(seat, seatLayoutArray)
+    })
+    seats.sort((a, b) => a.podiumScore - b.podiumScore)
+  })
+  
+  // 按列到讲台的平均距离排序（靠讲台的列优先）
+  const columns = Array.from(seatsByColumn.keys()).sort((a, b) => {
+    const aAvgDistance = seatsByColumn.get(a)!.reduce((sum, seat) => sum + seat.podiumScore, 0) / seatsByColumn.get(a)!.length
+    const bAvgDistance = seatsByColumn.get(b)!.reduce((sum, seat) => sum + seat.podiumScore, 0) / seatsByColumn.get(b)!.length
+    return aAvgDistance - bAvgDistance
+  })
+  
+  const totalColumns = columns.length
+  const studentsPerColumn = Math.ceil(students.length / totalColumns)
+  
+  let assignedCount = 0
+  let studentIndex = 0
+  
+  // 按列平均分配，优先填满靠讲台的列
+  for (const column of columns) {
+    const columnSeats = seatsByColumn.get(column)!
+    const seatsToFill = Math.min(studentsPerColumn, columnSeats.length, students.length - studentIndex)
+    
+    for (let i = 0; i < seatsToFill; i++) {
+      if (studentIndex >= students.length) break
+      
+      const student = students[studentIndex]
+      const seat = columnSeats[i] // 已按靠台距离排序
+      
+      if (await assignSingleStudent(student, seat, classId, db)) {
+        assignedCount++
+      }
+      studentIndex++
+    }
+  }
+  
+  return assignedCount
+}
+
+// 辅助函数：计算座位到讲台的距离分数
+function calculatePodiumDistance(seat: any, seatLayoutArray: any[][]): number {
+  const rows = seatLayoutArray?.length || 6
+  const cols = seatLayoutArray?.[0]?.length || 8
+  
+  // 讲台在右侧，所以右下角是最靠近讲台的位置
+  const podiumRow = rows - 1 // 最后一行
+  const podiumCol = cols - 1 // 最后一列
+  
+  // 使用曼哈顿距离计算
+  const rowDistance = Math.abs(seat.row - 1 - podiumRow)
+  const colDistance = Math.abs(seat.column - 1 - podiumCol)
+  
+  return rowDistance + colDistance
+}
+
+// 辅助函数：计算座位的平衡性分数
+function calculateBalanceScore(seat: any, allSeats: any[]): number {
+  // 计算在同行和同列的座位数量
+  const sameRowSeats = allSeats.filter(s => s.row === seat.row).length
+  const sameColSeats = allSeats.filter(s => s.column === seat.column).length
+  
+  // 返回平衡性分数（数量越多越不平衡）
+  return (sameRowSeats + sameColSeats) / 2
+}
+
+// 辅助函数：分配单个学生
+async function assignSingleStudent(
+  student: any,
+  seat: any,
+  classId: number,
+  db: any
+): Promise<boolean> {
+  try {
+    // 检查座位是否存在
+    const existingSeat = await db.get(
+      'SELECT id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+      [classId, seat.row, seat.column]
+    )
+
+    if (existingSeat) {
+      await db.run(
+        'UPDATE seats SET student_id = ? WHERE id = ?',
+        [student.id, existingSeat.id]
+      )
+    } else {
+      await db.run(
+        'INSERT INTO seats (class_id, student_id, row, column) VALUES (?, ?, ?, ?)',
+        [classId, student.id, seat.row, seat.column]
+      )
+    }
+    return true
+  } catch (error) {
+    console.error(`分配学生 ${student.name} 到座位 ${seat.row}-${seat.column} 失败:`, error)
+    return false
+  }
+}
+
+// 辅助函数：顺序分配学生（保留原有函数兼容性）
+async function assignStudentsSequentially(
+  students: any[], 
+  availableSeats: any[], 
+  classId: number, 
+  db: any
+): Promise<number> {
+  let assignedCount = 0
+  
+  for (let i = 0; i < Math.min(students.length, availableSeats.length); i++) {
+    const student = students[i]
+    const seat = availableSeats[i]
+    
+    if (await assignSingleStudent(student, seat, classId, db)) {
+      assignedCount++
+    }
+  }
+  
+  return assignedCount
 }

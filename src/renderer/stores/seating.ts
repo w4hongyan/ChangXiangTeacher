@@ -60,6 +60,7 @@ export const useSeatingStore = defineStore('seating', () => {
     error.value = null
     try {
       const result = await window.electronAPI.seating.getArrangement(classId)
+      
       if (result.success) {
         currentArrangement.value = result.data
         return { success: true, data: result.data }
@@ -85,6 +86,7 @@ export const useSeatingStore = defineStore('seating', () => {
     error.value = null
     try {
       const result = await window.electronAPI.seating.assignStudent(data)
+      
       if (result.success) {
         // 重新获取座位安排
         await getSeatingArrangement(data.class_id)
@@ -146,7 +148,11 @@ export const useSeatingStore = defineStore('seating', () => {
   }
 
   // 自动分配座位
-  async function autoAssignSeats(classId: number, options?: { numberingMode: string; numberingDirection: string }) {
+  async function autoAssignSeats(classId: number, options?: { 
+    numberingMode: string; 
+    numberingDirection: string;
+    strategy?: string;
+  }) {
     loading.value = true
     error.value = null
     try {

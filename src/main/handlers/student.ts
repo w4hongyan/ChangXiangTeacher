@@ -442,9 +442,17 @@ export function setupStudentHandlers(db: DatabaseManager) {
   ipcMain.handle('students:export', handleExportStudents);
 
   // 导入学生数据
-  const handleImportStudents = async (_: IpcMainInvokeEvent, fileBuffer: Buffer) => {
+  const handleImportStudents = async (_: IpcMainInvokeEvent, fileData: ArrayBuffer | Buffer) => {
     try {
       console.log('开始导入学生数据')
+      
+      // 将ArrayBuffer转换为Buffer（如果需要）
+      let fileBuffer: Buffer
+      if (fileData instanceof ArrayBuffer) {
+        fileBuffer = Buffer.from(fileData)
+      } else {
+        fileBuffer = fileData
+      }
       
       // 读取 Excel 文件
       const workbook = XLSX.read(fileBuffer, { type: 'buffer' })

@@ -23,7 +23,7 @@ declare global {
         delete: (id: number) => Promise<any>
         batchDelete: (ids: number[]) => Promise<any>
         getClasses: () => Promise<any>
-        import: (file: File) => Promise<any>
+        import: (buffer: ArrayBuffer) => Promise<any>
         export: (params?: any) => Promise<any>
       }
       seating: {
@@ -61,7 +61,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: number) => ipcRenderer.invoke('students:delete', id),
     batchDelete: (ids: number[]) => ipcRenderer.invoke('students:batchDelete', ids),
     getClasses: () => ipcRenderer.invoke('students:getClasses'),
-    import: (file: File) => ipcRenderer.invoke('students:import', file),
+    import: (buffer: ArrayBuffer) => ipcRenderer.invoke('students:import', buffer),
     export: (params?: any) => ipcRenderer.invoke('students:export', params)
   },
   seating: {

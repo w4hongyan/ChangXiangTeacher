@@ -222,7 +222,7 @@ const formVisible = ref(false)
 const importVisible = ref(false)
 const currentStudent = ref<StudentFormData & { id?: number }>()
 const selectedStudents = ref<number[]>([])
-const fileList = ref([])
+const fileList = ref<any[]>([])
 
 const students = computed(() => {
   console.log('Students computed - raw value:', studentStore.students)
@@ -525,7 +525,13 @@ const handleImportSubmit = async () => {
   }
 
   try {
-    const result = await studentStore.importStudents(fileList.value[0].raw)
+    const file = fileList.value[0].raw
+    
+    // 将File对象转换为ArrayBuffer，直接传递给后端
+    const arrayBuffer = await file.arrayBuffer()
+    
+    // 传递ArrayBuffer给后端，避免响应式对象序列化问题
+    const result = await studentStore.importStudents(arrayBuffer)
     if (result.success) {
       ElMessage.success(`成功导入 ${result.data?.success_count || 0} 个学生`)
       importVisible.value = false

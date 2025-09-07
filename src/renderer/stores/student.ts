@@ -148,11 +148,11 @@ export const useStudentStore = defineStore('student', () => {
   }
 
   // 导入学生
-  async function importStudents(file: File) {
+  async function importStudents(buffer: ArrayBuffer) {
     loading.value = true
     error.value = null
     try {
-      const result = await window.electronAPI.students.import(file)
+      const result = await window.electronAPI.students.import(buffer)
       if (result.success) {
         await fetchStudents()
         return { success: true, data: result.data }

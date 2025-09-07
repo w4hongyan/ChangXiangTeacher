@@ -175,6 +175,7 @@
               :saved-numbering-direction="currentConfig?.numbering_direction"
               @assign-student="handleAssignStudent"
               @remove-student="handleRemoveStudent"
+              @swap-students="handleSwapStudents"
               @auto-assign="handleAutoAssign"
               @clear-all="handleClearAll"
               @save-arrangement="handleSaveArrangement"
@@ -316,6 +317,8 @@ const loadSeatingArrangement = async () => {
   loadingArrangement.value = true
   try {
     await seatingStore.getSeatingArrangement(selectedClass.value.id)
+  } catch (error) {
+    console.error('加载座位安排失败:', error)
   } finally {
     loadingArrangement.value = false
   }
@@ -358,6 +361,9 @@ const handleAssignStudent = async (data: {
     } else {
       ElMessage.error(result.error || '分配失败')
     }
+  } catch (error) {
+    console.error('分配学生时发生错误:', error)
+    ElMessage.error('分配失败：' + (error instanceof Error ? error.message : '未知错误'))
   } finally {
     seatingLoading.value = false
   }
@@ -379,6 +385,8 @@ const handleRemoveStudent = async (data: {
     
     if (result.success) {
       ElMessage.success('学生座位移除成功')
+      // 强制刷新数据确保同步
+      await loadSeatingArrangement()
     } else {
       ElMessage.error(result.error || '移除失败')
     }
@@ -387,8 +395,38 @@ const handleRemoveStudent = async (data: {
   }
 }
 
+// 交换学生座位
+const handleSwapStudents = async (data: {
+  seat1: { row: number; column: number }
+  seat2: { row: number; column: number }
+}) => {
+  if (!selectedClass.value?.id) return
+  
+  seatingLoading.value = true
+  try {
+    const result = await seatingStore.swapStudents({
+      class_id: selectedClass.value.id,
+      ...data
+    })
+    
+    if (result.success) {
+      ElMessage.success('学生座位交换成功')
+      // 强制刷新数据确保同步
+      await loadSeatingArrangement()
+    } else {
+      ElMessage.error(result.error || '交换失败')
+    }
+  } finally {
+    seatingLoading.value = false
+  }
+}
+
 // 自动分配座位
-const handleAutoAssign = async (data?: { numberingMode: string; numberingDirection: string }) => {
+const handleAutoAssign = async (data?: { 
+  numberingMode: string; 
+  numberingDirection: string;
+  strategy?: string;
+}) => {
   if (!selectedClass.value?.id) return
   
   seatingLoading.value = true
@@ -396,7 +434,16 @@ const handleAutoAssign = async (data?: { numberingMode: string; numberingDirecti
     const result = await seatingStore.autoAssignSeats(selectedClass.value.id, data)
     
     if (result.success) {
-      ElMessage.success(`自动分配成功，共分配 ${result.data?.assigned || 0} 个学生`)
+      const strategyText = {
+        'sequential': '靠台优先平衡分配',
+        'balanced-row': '按行平衡（靠台优先）',
+        'balanced-column': '按列平衡（靠台优先）',
+        'podium-priority': '强制靠台优先'
+      }[data?.strategy || 'sequential'] || '自动分配'
+      
+      ElMessage.success(`${strategyText}成功，共分配 ${result.data?.assigned || 0} 个学生`)
+      // 强制刷新数据确保同步
+      await loadSeatingArrangement()
     } else {
       ElMessage.error(result.error || '自动分配失败')
     }
@@ -422,6 +469,8 @@ const handleClearAll = async () => {
     
     await Promise.all(promises)
     ElMessage.success('所有座位已清空')
+    // 强制刷新数据确保同步
+    await loadSeatingArrangement()
   } finally {
     seatingLoading.value = false
   }
@@ -495,7 +544,6 @@ onMounted(() => {
 }
 
 .step-card.full-height {
-  height: calc(100vh - 280px);
   margin-bottom: 0;
 }
 
