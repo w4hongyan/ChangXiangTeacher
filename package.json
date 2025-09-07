@@ -1,0 +1,97 @@
+{
+  "name": "changxiang-teacher",
+  "version": "1.0.0",
+  "description": "现代化教师教学管理工具 - 基于Electron + SQLite",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
+    "dev:main": "electron-vite dev --config electron.vite.config.ts",
+    "dev:renderer": "vite",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "electron-vite build --config electron.vite.config.ts",
+    "build:renderer": "vite build",
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/seed-data.js",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "keywords": [
+    "electron",
+    "vue",
+    "teacher",
+    "education",
+    "sqlite",
+    "classroom-management",
+    "student-management"
+  ],
+  "author": "ChangXiang Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-vue": "^4.5.2",
+    "@vue/eslint-config-prettier": "^8.0.0",
+    "@vue/eslint-config-typescript": "^12.0.0",
+    "@vue/tsconfig": "^0.4.0",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.8.1",
+    "electron-vite": "^2.0.0",
+    "eslint": "^8.55.0",
+    "eslint-plugin-vue": "^9.19.2",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vue-tsc": "^1.8.25"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "chart.js": "^4.4.1",
+    "dayjs": "^1.11.10",
+    "electron-store": "^8.1.0",
+    "element-plus": "^2.4.4",
+    "knex": "^3.1.0",
+    "pinia": "^2.1.7",
+    "sqlite3": "^5.1.6",
+    "vue": "^3.3.11",
+    "vue-chartjs": "^5.3.0",
+    "vue-router": "^4.2.5"
+  },
+  "build": {
+    "appId": "com.changxiang.teacher",
+    "productName": "畅想教师教学工具",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.education"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": "nsis"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Education"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

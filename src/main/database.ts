@@ -1,0 +1,203 @@
+import { app } from 'electron'
+import path from 'path'
+import fs from 'fs'
+import knex from 'knex'
+
+export class DatabaseManager {
+  private db: knex.Knex
+  private dbPath: string
+
+  constructor() {
+    // Use appData path and a consistent directory name for the database
+    // This ensures consistency with external scripts and where data might have been seeded.
+    this.dbPath = path.join(app.getPath('appData'), 'changxiang-teacher', 'database.db')
+    
+    this.db = knex({
+      client: 'sqlite3',
+      connection: {
+        filename: this.dbPath
+      },
+      useNullAsDefault: true,
+      pool: {
+        min: 1,
+        max: 1
+      }
+    })
+  }
+
+  async initialize(): Promise<void> {
+    try {
+      // 确保数据库目录存在
+      const dbDir = path.dirname(this.dbPath)
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true })
+      }
+
+      // 创建所有必要的表
+      await this.createTables()
+      console.log('数据库初始化完成')
+    } catch (error) {
+      console.error('数据库初始化失败:', error)
+    }
+  }
+
+  private async createTables(): Promise<void> {
+    // 班级表
+    await this.db.schema.hasTable('classes').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('classes', (table) => {
+          table.increments('id').primary()
+          table.string('name').notNullable() // 班级名称
+          table.string('grade').notNullable() // 年级
+          table.string('class_number').notNullable() // 班级序号
+          table.string('homeroom_teacher') // 班主任
+          table.string('teacher_phone') // 班主任电话
+          table.string('description')
+          table.integer('max_students').defaultTo(50)
+          table.string('semester')
+          table.integer('year')
+          table.boolean('is_active').defaultTo(true)
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 学生表
+    await this.db.schema.hasTable('students').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('students', (table) => {
+          table.increments('id').primary()
+          table.string('student_id').unique().notNullable()
+          table.string('name').notNullable()
+          table.string('gender')
+          table.date('birth_date')
+          table.string('phone')
+          table.string('parent_phone')
+          table.string('email')
+          table.string('address')
+          table.string('photo_path')
+          table.text('notes')
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.integer('height').defaultTo(160)
+          table.string('eyesight')
+          table.string('special_needs')
+          table.boolean('is_active').defaultTo(true)
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 座位表
+    await this.db.schema.hasTable('seats').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('seats', (table) => {
+          table.increments('id').primary()
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.integer('student_id').unsigned().references('id').inTable('students')
+          table.integer('row').notNullable()
+          table.integer('column').notNullable()
+          table.string('seat_type').defaultTo('normal')
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 成绩表
+    await this.db.schema.hasTable('grades').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('grades', (table) => {
+          table.increments('id').primary()
+          table.integer('student_id').unsigned().references('id').inTable('students')
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.string('subject').notNullable()
+          table.decimal('score', 5, 2).notNullable()
+          table.string('exam_type').notNullable() // 期中、期末、平时、月考等
+          table.date('exam_date')
+          table.string('semester')
+          table.integer('year')
+          table.text('notes')
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 积分表
+    await this.db.schema.hasTable('points').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('points', (table) => {
+          table.increments('id').primary()
+          table.integer('student_id').unsigned().references('id').inTable('students')
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.integer('points').notNullable()
+          table.string('type').notNullable() // 奖励、惩罚
+          table.string('reason').notNullable()
+          table.integer('given_by').defaultTo(1) // 记录给分的老师ID
+          table.date('given_date')
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 班级配置表
+    await this.db.schema.hasTable('class_configs').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('class_configs', (table) => {
+          table.increments('id').primary()
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.integer('rows').defaultTo(6)
+          table.integer('columns').defaultTo(8)
+          table.json('seat_layout') // 自定义座位布局
+          table.json('point_rules') // 积分规则配置
+          table.timestamps(true, true)
+        })
+      }
+    })
+  }
+
+  async query(sql: string, params: any[] = []): Promise<any> {
+    return this.db.raw(sql, params)
+  }
+
+  async run(sql: string, params: any[] = []): Promise<any> {
+    const result = await this.db.raw(sql, params)
+    
+    // 对于 INSERT 操作，需要返回包含 lastID 的对象
+    if (sql.trim().toUpperCase().startsWith('INSERT')) {
+      // 获取最后插入的ID
+      const lastIDResult = await this.db.raw('SELECT last_insert_rowid() as lastID')
+      const lastID = Array.isArray(lastIDResult) && lastIDResult.length > 0 
+        ? lastIDResult[0].lastID 
+        : null
+      
+      return { lastID, lastInsertRowid: lastID }
+    }
+    
+    // 对于其他操作（UPDATE, DELETE），返回受影响的行数
+    if (sql.trim().toUpperCase().startsWith('UPDATE') || sql.trim().toUpperCase().startsWith('DELETE')) {
+      const changesResult = await this.db.raw('SELECT changes() as changes')
+      const changes = Array.isArray(changesResult) && changesResult.length > 0 
+        ? changesResult[0].changes 
+        : 0
+      
+      return { changes }
+    }
+    
+    return result
+  }
+
+  async get(sql: string, params: any[] = []): Promise<any> {
+    const result = await this.db.raw(sql, params)
+    // Knex raw 返回 [{...}] 格式，需要取第一个元素
+    return Array.isArray(result) && result.length > 0 ? result[0] : null
+  }
+
+  async all(sql: string, params: any[] = []): Promise<any[]> {
+    const result = await this.db.raw(sql, params)
+    // Knex raw 直接返回结果数组
+    return Array.isArray(result) ? result : []
+  }
+
+  async close(): Promise<void> {
+    await this.db.destroy()
+  }
+}
