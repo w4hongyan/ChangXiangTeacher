@@ -8,9 +8,11 @@ export class DatabaseManager {
   private dbPath: string
 
   constructor() {
-    // Use appData path and a consistent directory name for the database
-    // This ensures consistency with external scripts and where data might have been seeded.
-    this.dbPath = path.join(app.getPath('appData'), 'changxiang-teacher', 'database.db')
+    // 将数据库移动到软件目录中，方便移动复制
+    // 使用应用程序安装目录下的data文件夹存储数据库
+    const appPath = app.getAppPath()
+    const dataDir = path.join(path.dirname(appPath), 'data')
+    this.dbPath = path.join(dataDir, 'database.db')
     
     this.db = knex({
       client: 'sqlite3',

@@ -210,9 +210,10 @@ ChangXiangTeacher/
 - `resources` - 资源导航表（网址、名称、分类、标签）
 
 **数据库位置**：
-- Windows: `%APPDATA%/changxiang-teacher/database.db`
-- macOS: `~/Library/Application Support/changxiang-teacher/database.db`
-- Linux: `~/.config/changxiang-teacher/database.db`
+- 开发环境: `./data/database.db` （软件目录下的data文件夹）
+- 生产环境: `[应用安装目录]/data/database.db`
+
+> **注意**: 数据库现在存储在软件目录中，方便整个应用的移动和复制。
 
 ## 🎨 功能特色
 

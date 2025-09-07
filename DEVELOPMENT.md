@@ -190,9 +190,10 @@ npm run dist:linux
 ### 数据库调试
 1. 使用 DB Browser for SQLite 查看数据库
 2. 数据库文件位置：
-   - Windows: `%APPDATA%/changxiang-teacher/database.db`
-   - macOS: `~/Library/Application Support/changxiang-teacher/database.db`
-   - Linux: `~/.config/changxiang-teacher/database.db`
+   - 开发环境: `./data/database.db` （项目根目录下的data文件夹）
+   - 生产环境: `[应用安装目录]/data/database.db`
+
+> **注意**: 数据库现在存储在软件目录中，方便整个应用的移动和复制。
 
 ## 🤝 贡献指南
 

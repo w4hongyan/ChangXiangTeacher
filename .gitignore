@@ -127,6 +127,16 @@ vite.config.ts.timestamp-*
 *.sqlite3
 
 # Database files (keep structure scripts, ignore data)
+# 允许data目录结构，但排除实际数据库文件
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+# 保留.gitkeep文件以保持目录结构
+!data/.gitkeep
+
 database.db
 *.db-journal
 *.db-wal

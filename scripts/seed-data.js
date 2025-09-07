@@ -1,11 +1,14 @@
 const knex = require('knex')
 const path = require('path')
 
+// 使用项目根目录下的data文件夹存储数据库
+const dbPath = path.join(__dirname, '..', 'data', 'database.db')
+
 // 创建数据库连接
 const db = knex({
   client: 'sqlite3',
   connection: {
-    filename: path.join(__dirname, '../database.db')
+    filename: dbPath
   },
   useNullAsDefault: true
 })

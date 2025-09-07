@@ -4,11 +4,10 @@ const path = require('path')
 const fs = require('fs')
 const sqlite3 = require('sqlite3').verbose()
 
-// 获取用户数据目录
-const userDataPath = process.env.APPDATA || 
-  (process.platform === 'darwin' ? path.join(process.env.HOME, 'Library', 'Application Support') : path.join(process.env.HOME, '.config'))
-
-const dbPath = path.join(userDataPath, 'changxiang-teacher', 'database.db')
+// 将数据库移动到软件目录中，方便移动复制
+// 使用项目根目录下的data文件夹存储数据库
+const dataDir = path.join(__dirname, '..', 'data')
+const dbPath = path.join(dataDir, 'database.db')
 
 // 确保目录存在
 const dbDir = path.dirname(dbPath)

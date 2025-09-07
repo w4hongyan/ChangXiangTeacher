@@ -19,7 +19,7 @@ npm install
 npm run db:init
 ```
 
-这将在您的用户目录下创建数据库文件。
+这将在项目根目录下的`data`文件夹中创建数据库文件，方便整个应用的移动和复制。
 
 ## 🔧 第三步：启动开发环境
 
@@ -65,7 +65,7 @@ npm run dev
 
 ## 🔍 调试技巧
 
-1. **查看数据库**：使用 DB Browser for SQLite 打开数据库文件
+1. **查看数据库**：使用 DB Browser for SQLite 打开 `./data/database.db`
 2. **开发者工具**：按 `Ctrl+Shift+I` 打开开发者工具
 3. **热重载**：修改代码后自动刷新
 
