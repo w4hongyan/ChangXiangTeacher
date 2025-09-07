@@ -79,13 +79,18 @@
             <el-icon><Delete /></el-icon>
             清空座位
           </el-button>
+          <!-- 全屏按钮 -->
+          <el-button @click="toggleFullscreen" :type="isFullscreen ? 'warning' : 'primary'">
+            <el-icon><FullScreen v-if="!isFullscreen" /><Aim v-else /></el-icon>
+            {{ isFullscreen ? '退出全屏' : '全屏操作' }}
+          </el-button>
         </div>
       </div>
     </div>
 
-    <div class="arrangement-content">
+    <div class="arrangement-content" :class="{ 'fullscreen-mode': isFullscreen }">
       <!-- 学生列表（上方） -->
-      <div class="students-panel">
+      <div class="students-panel" v-show="!isFullscreen">
         <div class="panel-header">
           <h4>未分配学生</h4>
           <el-badge :value="arrangement?.unassigned_students?.length || 0" type="warning">
@@ -122,13 +127,65 @@
         </div>
       </div>
       
+      <!-- 全屏模式下的学生列表侧边栏 -->
+      <div class="fullscreen-students-sidebar" v-show="isFullscreen" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+        <div class="sidebar-header">
+          <el-button 
+            @click="sidebarCollapsed = !sidebarCollapsed" 
+            :icon="sidebarCollapsed ? 'ArrowRight' : 'ArrowLeft'"
+            circle
+            size="small"
+            class="collapse-btn"
+          />
+          <h4 v-show="!sidebarCollapsed">未分配学生 ({{ arrangement?.unassigned_students?.length || 0 }})</h4>
+        </div>
+        
+        <div class="sidebar-students" v-show="!sidebarCollapsed">
+          <div
+            v-for="student in arrangement?.unassigned_students"
+            :key="student.id"
+            class="sidebar-student-item"
+            draggable="true"
+            @dragstart="handleDragStart($event, student)"
+            @dragend="handleDragEnd"
+            @touchstart="handleTouchStart($event, student)"
+            @touchmove="handleTouchMove"
+            @touchend="handleTouchEnd"
+          >
+            <div class="student-name">{{ student.name }}</div>
+            <el-tag :type="student.gender === '男' ? 'primary' : 'danger'" size="small">
+              {{ student.gender || '未知' }}
+            </el-tag>
+          </div>
+        </div>
+      </div>
+      
       <!-- 座位区域（下方） -->
-      <div class="seating-area" ref="seatingAreaRef">
-        <div class="classroom">
+      <div class="seating-area" :class="{ 'fullscreen-seating': isFullscreen }" ref="seatingAreaRef">
+        <!-- 全屏模式下的顶部工具栏 -->
+        <div class="fullscreen-toolbar" v-show="isFullscreen">
+          <div class="toolbar-left">
+            <el-tag type="info">总学生: {{ arrangement?.total_students || 0 }}</el-tag>
+            <el-tag type="success">已安排: {{ arrangement?.assigned_students || 0 }}</el-tag>
+            <el-tag type="warning">未安排: {{ (arrangement?.total_students || 0) - (arrangement?.assigned_students || 0) }}</el-tag>
+          </div>
+          <div class="toolbar-right">
+            <el-button @click="handleClearAll" size="small">
+              <el-icon><Delete /></el-icon>
+              清空座位
+            </el-button>
+            <el-button @click="toggleFullscreen" type="warning" size="small">
+              <el-icon><Aim /></el-icon>
+              退出全屏
+            </el-button>
+          </div>
+        </div>
+        
+        <div class="classroom" :class="{ 'touch-optimized': isFullscreen }">
           <!-- 座位布局 -->
           <div class="classroom-layout">
             <!-- 座位区域 -->
-            <div class="seats-grid" v-if="arrangement?.layout">
+            <div class="seats-grid" v-if="arrangement?.layout" :class="{ 'fullscreen-grid': isFullscreen }">
               <div
                 v-for="(row, rowIndex) in arrangement.layout.seats"
                 :key="rowIndex"
@@ -142,7 +199,9 @@
                     {
                       'drag-over': dragOverSeat?.row === rowIndex + 1 && dragOverSeat?.column === colIndex + 1,
                       'drag-valid': isDragging && seat.type === 'seat',
-                      'drag-invalid': isDragging && seat.type !== 'seat'
+                      'drag-invalid': isDragging && seat.type !== 'seat',
+                      'touch-seat': isFullscreen && seat.type === 'seat',
+                      'touch-occupied': isFullscreen && seat.type === 'seat' && seat.student_name
                     }
                   ]"
                   @click="handleSeatClick(rowIndex + 1, colIndex + 1)"
@@ -150,6 +209,9 @@
                   @dragover="handleDragOver"
                   @dragenter="handleDragEnter($event, rowIndex + 1, colIndex + 1)"
                   @dragleave="handleDragLeave"
+                  @touchstart="handleSeatTouchStart($event, rowIndex + 1, colIndex + 1)"
+                  @touchmove="handleSeatTouchMove"
+                  @touchend="handleSeatTouchEnd($event, rowIndex + 1, colIndex + 1)"
                 >
                   <div v-if="seat.type === 'seat'" class="seat-content">
                     <div class="seat-number">{{ getSeatNumber(rowIndex, colIndex) }}</div>
@@ -171,7 +233,7 @@
             </div>
             
             <!-- 讲台区域（右侧） -->
-            <div class="podium-area">
+            <div class="podium-area" :class="{ 'fullscreen-podium': isFullscreen }">
               <div class="podium">讲台</div>
             </div>
           </div>
@@ -184,7 +246,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Star, Delete, UserFilled, User, DocumentAdd, Download, ArrowDown, Document, Picture, Sort, Grid, LocationInformation } from '@element-plus/icons-vue'
+import { Star, Delete, UserFilled, User, DocumentAdd, Download, ArrowDown, Document, Picture, Sort, Grid, LocationInformation, FullScreen, Aim, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
 import html2canvas from 'html2canvas'
 import type { SeatingArrangement, SeatPosition, UnassignedStudent } from '../types/seating'
@@ -216,6 +278,15 @@ const dragOverSeat = ref<{ row: number; column: number } | null>(null)
 
 // DOM引用
 const seatingAreaRef = ref<HTMLElement>()
+
+// 全屏状态
+const isFullscreen = ref(false)
+const sidebarCollapsed = ref(false)
+
+// 触摸拖拽状态
+let touchDragStudent: UnassignedStudent | null = null
+let touchStartPosition: { x: number; y: number } | null = null
+let isDragTouching = ref(false)
 
 // 座位编号模式
 const numberingMode = ref<'row-column' | 's-shape' | 'z-shape' | 'podium-s'>('row-column')
@@ -619,7 +690,13 @@ const handleExportExcel = () => {
     const workbook = XLSX.utils.book_new()
     
     // 获取已分配学生数据并按座位号排序
-    const assignedStudents = []
+    const assignedStudents: Array<{
+      seatNumber: number
+      seatNumberText: string
+      name: string
+      row: number
+      column: number
+    }> = []
     if (props.arrangement.students) {
       props.arrangement.students.forEach(student => {
         const seatNumber = getSeatNumber(student.row - 1, student.column - 1)
@@ -689,7 +766,7 @@ const handleExportExcel = () => {
         if (!worksheet[cellAddress]) worksheet[cellAddress] = { t: 's', v: '' }
         
         // 基础样式
-        const cellStyle = {
+        const cellStyle: any = {
           border: {
             top: { style: 'thin', color: { rgb: '000000' } },
             bottom: { style: 'thin', color: { rgb: '000000' } },
@@ -722,7 +799,7 @@ const handleExportExcel = () => {
         }
         // 数据行样式（奇偶行不同背景色）
         else if (R > 0 && excelData[R] && typeof excelData[R][0] === 'number') {
-          if (excelData[R][0] % 2 === 0) {
+          if ((excelData[R][0] as number) % 2 === 0) {
             cellStyle.fill = { fgColor: { rgb: 'FAFAFA' } }
           }
         }
@@ -850,6 +927,140 @@ const getNumberingModeText = () => {
     default:
       return '行列式'
   }
+}
+
+// 全屏模式切换
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+  if (isFullscreen.value) {
+    // 进入全屏模式时，重置侧边栏状态
+    sidebarCollapsed.value = false
+  }
+}
+
+// 触摸拖拽事件处理
+const handleTouchStart = (event: TouchEvent, student: UnassignedStudent) => {
+  event.preventDefault()
+  touchDragStudent = student
+  const touch = event.touches[0]
+  touchStartPosition = { x: touch.clientX, y: touch.clientY }
+  isDragTouching.value = true
+  
+  // 添加触摸反馈
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(1.1)'
+  target.style.zIndex = '1000'
+  target.style.opacity = '0.8'
+}
+
+const handleTouchMove = (event: TouchEvent) => {
+  if (!touchDragStudent || !touchStartPosition) return
+  
+  event.preventDefault()
+  const touch = event.touches[0]
+  const deltaX = touch.clientX - touchStartPosition.x
+  const deltaY = touch.clientY - touchStartPosition.y
+  
+  // 移动阈值，避免误触
+  if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+    const target = event.target as HTMLElement
+    target.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1.1)`
+  }
+}
+
+const handleTouchEnd = (event: TouchEvent) => {
+  if (!touchDragStudent) return
+  
+  event.preventDefault()
+  const touch = event.changedTouches[0]
+  
+  // 恢复样式
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  target.style.zIndex = ''
+  target.style.opacity = ''
+  
+  // 查找触摸结束位置的座位
+  const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+  const seatElement = elementBelow?.closest('.seat-cell')
+  
+  if (seatElement) {
+    // 从元素的class或data属性获取座位信息
+    const seatInfo = findSeatFromElement(seatElement as HTMLElement)
+    if (seatInfo) {
+      const seat = props.arrangement?.layout.seats[seatInfo.row - 1]?.[seatInfo.column - 1]
+      if (seat?.type === 'seat') {
+        const existingStudent = getStudentInSeat(seatInfo.row, seatInfo.column)
+        if (!existingStudent) {
+          emit('assign-student', {
+            student_id: touchDragStudent.id,
+            row: seatInfo.row,
+            column: seatInfo.column
+          })
+          ElMessage.success(`${touchDragStudent.name} 已分配到座位 ${getSeatNumber(seatInfo.row - 1, seatInfo.column - 1)}`)
+        } else {
+          ElMessage.warning('该座位已被占用')
+        }
+      }
+    }
+  }
+  
+  // 清理状态
+  touchDragStudent = null
+  touchStartPosition = null
+  isDragTouching.value = false
+}
+
+// 座位触摸事件处理
+const handleSeatTouchStart = (event: TouchEvent, row: number, column: number) => {
+  if (!isFullscreen.value) return // 只在全屏模式下启用
+  
+  const seat = props.arrangement?.layout.seats[row - 1]?.[column - 1]
+  if (!seat || seat.type !== 'seat') return
+  
+  const student = getStudentInSeat(row, column)
+  if (!student) return
+  
+  event.preventDefault()
+  
+  // 添加触摸反馈
+  const target = event.target as HTMLElement
+  target.style.transform = 'scale(1.05)'
+  target.style.boxShadow = '0 4px 16px rgba(64, 158, 255, 0.4)'
+}
+
+const handleSeatTouchMove = (event: TouchEvent) => {
+  event.preventDefault()
+}
+
+const handleSeatTouchEnd = (event: TouchEvent, row: number, column: number) => {
+  if (!isFullscreen.value) return
+  
+  const target = event.target as HTMLElement
+  target.style.transform = ''
+  target.style.boxShadow = ''
+  
+  // 模拟点击行为
+  handleSeatClick(row, column)
+}
+
+// 从DOM元素查找座位信息
+const findSeatFromElement = (element: HTMLElement): { row: number; column: number } | null => {
+  // 查找包含座位信息的父元素
+  const seatCells = document.querySelectorAll('.seat-cell')
+  for (let i = 0; i < seatCells.length; i++) {
+    if (seatCells[i] === element || seatCells[i].contains(element)) {
+      // 通过座位在DOM中的位置计算行列
+      const seatCell = seatCells[i] as HTMLElement
+      const row = seatCell.closest('.seat-row')
+      if (row) {
+        const rowIndex = Array.from(row.parentElement!.children).indexOf(row)
+        const colIndex = Array.from(row.children).indexOf(seatCell)
+        return { row: rowIndex + 1, column: colIndex + 1 }
+      }
+    }
+  }
+  return null
 }
 </script>
 
@@ -1209,6 +1420,261 @@ const getNumberingModeText = () => {
   justify-content: center;
   font-size: 10px;
   color: #999;
+}
+
+/* 全屏模式样式 */
+.fullscreen-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: #1a1a1a;
+  padding: 0;
+  gap: 0;
+  flex-direction: row;
+}
+
+.fullscreen-students-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 280px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.fullscreen-students-sidebar.sidebar-collapsed {
+  width: 60px;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  gap: 12px;
+}
+
+.sidebar-header h4 {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.collapse-btn {
+  flex-shrink: 0;
+}
+
+.sidebar-students {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar-student-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: move;
+  transition: all 0.2s ease;
+  user-select: none;
+  backdrop-filter: blur(5px);
+}
+
+.sidebar-student-item:hover {
+  background: rgba(64, 158, 255, 0.1);
+  border-color: #409eff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.2);
+}
+
+.sidebar-student-item:active {
+  transform: scale(0.98);
+}
+
+.sidebar-student-item .student-name {
+  font-weight: bold;
+  color: #333;
+  font-size: 14px;
+}
+
+.fullscreen-seating {
+  flex: 1;
+  background: #1a1a1a;
+  border-radius: 0;
+  padding: 0;
+  overflow: hidden;
+  margin-left: 280px;
+  transition: margin-left 0.3s ease;
+}
+
+.fullscreen-mode .sidebar-collapsed + .fullscreen-seating {
+  margin-left: 60px;
+}
+
+.fullscreen-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.touch-optimized {
+  padding: 20px;
+  height: calc(100vh - 80px);
+  overflow: auto;
+}
+
+.fullscreen-grid {
+  gap: 16px;
+}
+
+.fullscreen-grid .seat-row {
+  gap: 12px;
+}
+
+.fullscreen-grid .seat-cell {
+  width: 80px;
+  height: 80px;
+  border-width: 3px;
+}
+
+.touch-seat {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.touch-seat:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
+}
+
+.touch-seat:active {
+  transform: scale(0.95);
+}
+
+.touch-occupied {
+  border-color: #409eff !important;
+  background: linear-gradient(135deg, #e7f4ff 0%, #cce7ff 100%) !important;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.touch-occupied:hover {
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.4);
+  transform: scale(1.1);
+}
+
+.touch-occupied .student-info {
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.touch-occupied .student-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+}
+
+.touch-occupied .seat-number {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.fullscreen-podium {
+  min-width: 100px;
+}
+
+.fullscreen-podium .podium {
+  padding: 60px 16px;
+  font-size: 18px;
+  min-height: 160px;
+}
+
+/* 触摸反馈动画 */
+@keyframes touchPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(64, 158, 255, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(64, 158, 255, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(64, 158, 255, 0);
+  }
+}
+
+.touch-feedback {
+  animation: touchPulse 0.3s ease-out;
+}
+
+/* 在小屏幕上的响应式调整 */
+@media (max-width: 768px) {
+  .fullscreen-students-sidebar {
+    width: 240px;
+  }
+  
+  .fullscreen-students-sidebar.sidebar-collapsed {
+    width: 50px;
+  }
+  
+  .fullscreen-seating {
+    margin-left: 240px;
+  }
+  
+  .fullscreen-mode .sidebar-collapsed + .fullscreen-seating {
+    margin-left: 50px;
+  }
+  
+  .fullscreen-grid .seat-cell {
+    width: 70px;
+    height: 70px;
+  }
+}
+
+/* 拖拽状态增强 */
+.is-touch-dragging {
+  pointer-events: none;
+  transform: scale(1.1) rotate(5deg);
+  opacity: 0.8;
+  z-index: 10001;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 
