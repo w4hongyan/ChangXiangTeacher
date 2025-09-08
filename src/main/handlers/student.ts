@@ -57,6 +57,7 @@ export function setupStudentHandlers(db: DatabaseManager) {
           s.parent_phone,
           s.email,
           s.address,
+          s.class_id,
           s.is_active,
           s.created_at,
           c.name as class_name

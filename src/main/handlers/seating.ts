@@ -353,6 +353,7 @@ export function setupSeatingHandlers(db: DatabaseManager) {
 
       // 交换座位
       if (seat1 && seat2) {
+        // 直接交换学生ID，避免事务嵌套问题
         await db.run(
           'UPDATE seats SET student_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           [seat2.student_id, seat1.id]
@@ -371,11 +372,96 @@ export function setupSeatingHandlers(db: DatabaseManager) {
   }
   ipcMain.handle('seating:swapStudents', handleSwapStudents)
 
+  // 批量交换多个学生的座位
+  const handleSwapMultipleStudents = async (_: IpcMainInvokeEvent, data: {
+    class_id: number
+    swaps: Array<{
+      seat1: { row: number; column: number }
+      seat2: { row: number; column: number }
+    }>
+  }) => {
+    try {
+      // 使用事务来确保数据一致性
+      await db.run('BEGIN TRANSACTION')
+      
+      try {
+        // 收集所有需要交换的座位信息
+        const seatInfos: Array<{
+          id: number
+          student_id: number | null
+        }> = []
+        
+        // 获取所有座位的学生信息
+        for (const swap of data.swaps) {
+          const seat1 = await db.get(
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            [data.class_id, swap.seat1.row, swap.seat1.column]
+          )
+          
+          const seat2 = await db.get(
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            [data.class_id, swap.seat2.row, swap.seat2.column]
+          )
+          
+          if (seat1 && seat2) {
+            seatInfos.push(
+              { id: seat1.id, student_id: seat1.student_id },
+              { id: seat2.id, student_id: seat2.student_id }
+            )
+          }
+        }
+        
+        // 先将所有座位的学生ID都设为NULL，避免唯一性约束冲突
+        for (const seatInfo of seatInfos) {
+          await db.run(
+            'UPDATE seats SET student_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [seatInfo.id]
+          )
+        }
+        
+        // 然后交换学生ID
+        for (const swap of data.swaps) {
+          const seat1 = await db.get(
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            [data.class_id, swap.seat1.row, swap.seat1.column]
+          )
+          
+          const seat2 = await db.get(
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            [data.class_id, swap.seat2.row, swap.seat2.column]
+          )
+          
+          if (seat1 && seat2) {
+            await db.run(
+              'UPDATE seats SET student_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+              [seat2.student_id, seat1.id]
+            )
+            await db.run(
+              'UPDATE seats SET student_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+              [seat1.student_id, seat2.id]
+            )
+          }
+        }
+        
+        await db.run('COMMIT')
+        return { success: true }
+      } catch (error) {
+        await db.run('ROLLBACK')
+        throw error
+      }
+    } catch (error) {
+      console.error('批量交换座位失败:', error)
+      return { success: false, error: error instanceof Error ? error.message : '批量交换座位失败' }
+    }
+  }
+  ipcMain.handle('seating:swapMultipleStudents', handleSwapMultipleStudents)
+
   // 自动分配座位
   const handleAutoAssign = async (_: IpcMainInvokeEvent, classId: number, options?: { 
     numberingMode: string; 
     numberingDirection: string;
     strategy?: string;
+    fixedStudents?: string[];
   }) => {
     try {
       // 获取班级配置
@@ -388,15 +474,40 @@ export function setupSeatingHandlers(db: DatabaseManager) {
       const numberingMode = options?.numberingMode || config.numbering_mode || 'row-column'
       const numberingDirection = options?.numberingDirection || config.numbering_direction || 'top'
       const strategy = options?.strategy || 'sequential'
+      const fixedStudentIds = options?.fixedStudents || []
 
-      // 清除现有座位分配
-      await db.run('UPDATE seats SET student_id = NULL WHERE class_id = ?', [classId])
+      // 对于新的策略，仅清除未固定学生的座位
+      if (strategy === 'fixed-preserve' || strategy === 'random') {
+        // 获取当前座位安排，找出固定学生的座位
+        const currentSeats = await db.all(
+          'SELECT * FROM seats WHERE class_id = ? AND student_id IS NOT NULL',
+          [classId]
+        )
+        
+        // 只清除未固定学生的座位
+        for (const seat of currentSeats) {
+          if (!fixedStudentIds.includes(seat.student_id.toString())) {
+            await db.run(
+              'UPDATE seats SET student_id = NULL WHERE class_id = ? AND row = ? AND column = ?',
+              [classId, seat.row, seat.column]
+            )
+          }
+        }
+      } else {
+        // 其他策略清除所有座位分配
+        await db.run('UPDATE seats SET student_id = NULL WHERE class_id = ?', [classId])
+      }
 
-      // 获取所有学生（按姓名排序）
-      const students = await db.all(
+      // 获取所有学生
+      const allStudents = await db.all(
         'SELECT id, name, gender FROM students WHERE class_id = ? AND is_active = 1 ORDER BY name',
         [classId]
       )
+      
+      // 筛选出需要分配的学生（排除固定学生）
+      const studentsToAssign = strategy === 'fixed-preserve' || strategy === 'random'
+        ? allStudents.filter(student => !fixedStudentIds.includes(student.id.toString()))
+        : allStudents
 
       // 解析座位布局
       let seatLayoutArray = null
@@ -408,14 +519,28 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         }
       }
 
-      // 获取可用座位
+      // 获取可用座位（排除固定学生占用的座位）
       const availableSeats = []
+      const occupiedPositions = new Set<string>()
+      
+      // 对于固定策略，获取已被固定学生占用的位置
+      if (strategy === 'fixed-preserve' || strategy === 'random') {
+        const fixedSeats = await db.all(
+          'SELECT row, column FROM seats WHERE class_id = ? AND student_id IS NOT NULL',
+          [classId]
+        )
+        fixedSeats.forEach(seat => {
+          occupiedPositions.add(`${seat.row}-${seat.column}`)
+        })
+      }
+      
       if (seatLayoutArray && Array.isArray(seatLayoutArray)) {
         // 使用保存的座位布局
         for (let row = 0; row < seatLayoutArray.length; row++) {
           for (let col = 0; col < seatLayoutArray[row].length; col++) {
             const seat = seatLayoutArray[row][col]
-            if (seat && seat.type === 'seat') {
+            const position = `${row + 1}-${col + 1}`
+            if (seat && seat.type === 'seat' && !occupiedPositions.has(position)) {
               availableSeats.push({ row: row + 1, column: col + 1, rowIndex: row, colIndex: col })
             }
           }
@@ -424,7 +549,10 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         // 默认布局，所有位置都是座位
         for (let row = 1; row <= config.rows; row++) {
           for (let col = 1; col <= config.columns; col++) {
-            availableSeats.push({ row, column: col, rowIndex: row - 1, colIndex: col - 1 })
+            const position = `${row}-${col}`
+            if (!occupiedPositions.has(position)) {
+              availableSeats.push({ row, column: col, rowIndex: row - 1, colIndex: col - 1 })
+            }
           }
         }
       }
@@ -435,27 +563,37 @@ export function setupSeatingHandlers(db: DatabaseManager) {
       switch (strategy) {
         case 'sequential':
           // 顺序分配：按编号顺序分配，同时考虑靠台优先
-          assignedCount = await assignStudentsWithPodiumPriority(students, availableSeats, seatLayoutArray, numberingMode, numberingDirection, classId, db)
+          assignedCount = await assignStudentsWithPodiumPriority(studentsToAssign, availableSeats, seatLayoutArray, numberingMode, numberingDirection, classId, db)
           break
           
         case 'balanced-row':
           // 按行平均分配：保持行平衡，同时靠台优先
-          assignedCount = await assignStudentsBalancedByRowWithPodium(students, availableSeats, seatLayoutArray, classId, db)
+          assignedCount = await assignStudentsBalancedByRowWithPodium(studentsToAssign, availableSeats, seatLayoutArray, classId, db)
           break
           
         case 'balanced-column':
           // 按列平均分配：保持列平衡，同时靠台优先
-          assignedCount = await assignStudentsBalancedByColumnWithPodium(students, availableSeats, seatLayoutArray, classId, db)
+          assignedCount = await assignStudentsBalancedByColumnWithPodium(studentsToAssign, availableSeats, seatLayoutArray, classId, db)
           break
           
         case 'podium-priority':
           // 靠台优先分配：强制使用靠台优先算法
-          assignedCount = await assignStudentsWithPodiumPriority(students, availableSeats, seatLayoutArray, 'podium-s', numberingDirection, classId, db)
+          assignedCount = await assignStudentsWithPodiumPriority(studentsToAssign, availableSeats, seatLayoutArray, 'podium-s', numberingDirection, classId, db)
+          break
+          
+        case 'fixed-preserve':
+          // 固定学生后自动分配：使用靠台优先策略
+          assignedCount = await assignStudentsWithPodiumPriority(studentsToAssign, availableSeats, seatLayoutArray, numberingMode, numberingDirection, classId, db)
+          break
+          
+        case 'random':
+          // 随机分配
+          assignedCount = await assignStudentsRandomly(studentsToAssign, availableSeats, classId, db)
           break
           
         default:
           // 默认使用靠台优先平衡分配
-          assignedCount = await assignStudentsWithPodiumPriority(students, availableSeats, seatLayoutArray, numberingMode, numberingDirection, classId, db)
+          assignedCount = await assignStudentsWithPodiumPriority(studentsToAssign, availableSeats, seatLayoutArray, numberingMode, numberingDirection, classId, db)
       }
 
       return { success: true, data: { assigned: assignedCount } }
@@ -818,6 +956,31 @@ async function assignStudentsSequentially(
   for (let i = 0; i < Math.min(students.length, availableSeats.length); i++) {
     const student = students[i]
     const seat = availableSeats[i]
+    
+    if (await assignSingleStudent(student, seat, classId, db)) {
+      assignedCount++
+    }
+  }
+  
+  return assignedCount
+}
+
+// 辅助函数：随机分配学生
+async function assignStudentsRandomly(
+  students: any[], 
+  availableSeats: any[], 
+  classId: number, 
+  db: any
+): Promise<number> {
+  // 打乱学生和座位顺序
+  const shuffledStudents = [...students].sort(() => Math.random() - 0.5)
+  const shuffledSeats = [...availableSeats].sort(() => Math.random() - 0.5)
+  
+  let assignedCount = 0
+  
+  for (let i = 0; i < Math.min(shuffledStudents.length, shuffledSeats.length); i++) {
+    const student = shuffledStudents[i]
+    const seat = shuffledSeats[i]
     
     if (await assignSingleStudent(student, seat, classId, db)) {
       assignedCount++

@@ -147,11 +147,37 @@ export const useSeatingStore = defineStore('seating', () => {
     }
   }
 
+  // 批量交换学生座位
+  async function swapMultipleStudents(data: {
+    class_id: number
+    swaps: Array<{
+      seat1: { row: number; column: number }
+      seat2: { row: number; column: number }
+    }>
+  }) {
+    error.value = null
+    try {
+      const result = await window.electronAPI.seating.swapMultipleStudents(data)
+      if (result.success) {
+        // 重新获取座位安排
+        await getSeatingArrangement(data.class_id)
+        return { success: true }
+      } else {
+        error.value = result.error
+        return { success: false, error: result.error }
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '批量交换座位失败'
+      return { success: false, error: error.value }
+    }
+  }
+
   // 自动分配座位
   async function autoAssignSeats(classId: number, options?: { 
     numberingMode: string; 
     numberingDirection: string;
     strategy?: string;
+    fixedStudents?: string[];
   }) {
     loading.value = true
     error.value = null

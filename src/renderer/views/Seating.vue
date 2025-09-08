@@ -176,6 +176,7 @@
               @assign-student="handleAssignStudent"
               @remove-student="handleRemoveStudent"
               @swap-students="handleSwapStudents"
+              @swap-multiple-students="handleSwapMultipleStudents"
               @auto-assign="handleAutoAssign"
               @clear-all="handleClearAll"
               @save-arrangement="handleSaveArrangement"
@@ -208,6 +209,17 @@ import { useClassStore } from '../stores/class'
 import { useSeatingStore } from '../stores/seating'
 import type { Class } from '../types/class'
 import type { SeatingArrangement as SeatingArrangementType, SeatPosition } from '../types/seating'
+
+interface Emits {
+  (e: 'select-class', classId: number): void
+  (e: 'assign-student', data: { student_id: number; row: number; column: number }): void
+  (e: 'remove-student', data: { row: number; column: number }): void
+  (e: 'swap-students', data: { seat1: { row: number; column: number }; seat2: { row: number; column: number } }): void
+  (e: 'swap-multiple-students', data: Array<{ seat1: { row: number; column: number }; seat2: { row: number; column: number } }>): void
+  (e: 'auto-assign', data: { numberingMode: string; numberingDirection: string; strategy?: string; fixedStudents?: string[] }): void
+  (e: 'clear-all'): void
+  (e: 'save-arrangement'): void
+}
 
 const classStore = useClassStore()
 const seatingStore = useSeatingStore()
@@ -421,11 +433,38 @@ const handleSwapStudents = async (data: {
   }
 }
 
+// 批量交换学生座位
+const handleSwapMultipleStudents = async (swaps: Array<{
+  seat1: { row: number; column: number }
+  seat2: { row: number; column: number }
+}>) => {
+  if (!selectedClass.value?.id) return
+  
+  seatingLoading.value = true
+  try {
+    const result = await seatingStore.swapMultipleStudents({
+      class_id: selectedClass.value.id,
+      swaps
+    })
+    
+    if (result.success) {
+      ElMessage.success('学生座位批量交换成功')
+      // 强制刷新数据确保同步
+      await loadSeatingArrangement()
+    } else {
+      ElMessage.error(result.error || '批量交换失败')
+    }
+  } finally {
+    seatingLoading.value = false
+  }
+}
+
 // 自动分配座位
 const handleAutoAssign = async (data?: { 
   numberingMode: string; 
   numberingDirection: string;
   strategy?: string;
+  fixedStudents?: string[];
 }) => {
   if (!selectedClass.value?.id) return
   
@@ -438,10 +477,17 @@ const handleAutoAssign = async (data?: {
         'sequential': '靠台优先平衡分配',
         'balanced-row': '按行平衡（靠台优先）',
         'balanced-column': '按列平衡（靠台优先）',
-        'podium-priority': '强制靠台优先'
+        'podium-priority': '强制靠台优先',
+        'fixed-preserve': '固定学生自动分配',
+        'random': '随机重排'
       }[data?.strategy || 'sequential'] || '自动分配'
       
-      ElMessage.success(`${strategyText}成功，共分配 ${result.data?.assigned || 0} 个学生`)
+      const fixedCount = data?.fixedStudents?.length || 0
+      const successMessage = fixedCount > 0 
+        ? `${strategyText}成功，保持 ${fixedCount} 个固定学生，分配 ${result.data?.assigned || 0} 个学生`
+        : `${strategyText}成功，共分配 ${result.data?.assigned || 0} 个学生`
+      
+      ElMessage.success(successMessage)
       // 强制刷新数据确保同步
       await loadSeatingArrangement()
     } else {

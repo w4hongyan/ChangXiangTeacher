@@ -33,8 +33,22 @@ declare global {
         assignStudent: (data: any) => Promise<any>
         removeStudent: (data: any) => Promise<any>
         swapStudents: (data: any) => Promise<any>
+        swapMultipleStudents: (data: any) => Promise<any>
         autoAssign: (classId: number, options?: any) => Promise<any>
         saveArrangement: (classId: number) => Promise<any>
+      }
+      grades: {
+        list: (params?: any) => Promise<any>
+        getById: (id: number) => Promise<any>
+        create: (data: any) => Promise<any>
+        update: (id: number, data: any) => Promise<any>
+        delete: (id: number) => Promise<any>
+        batchDelete: (ids: number[]) => Promise<any>
+        getStats: (params?: any) => Promise<any>
+        getSubjects: () => Promise<any>
+        getExamTypes: () => Promise<any>
+        import: (data: any[]) => Promise<any>
+        export: (params?: any) => Promise<any>
       }
     }
   }
@@ -71,8 +85,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     assignStudent: (data: any) => ipcRenderer.invoke('seating:assignStudent', data),
     removeStudent: (data: any) => ipcRenderer.invoke('seating:removeStudent', data),
     swapStudents: (data: any) => ipcRenderer.invoke('seating:swapStudents', data),
+    swapMultipleStudents: (data: any) => ipcRenderer.invoke('seating:swapMultipleStudents', data),
     autoAssign: (classId: number, options?: any) => ipcRenderer.invoke('seating:autoAssign', classId, options),
     saveArrangement: (classId: number) => ipcRenderer.invoke('seating:saveArrangement', classId)
+  },
+  grades: {
+    list: (params?: any) => ipcRenderer.invoke('grades:list', params),
+    getById: (id: number) => ipcRenderer.invoke('grades:getById', id),
+    create: (data: any) => ipcRenderer.invoke('grades:create', data),
+    update: (id: number, data: any) => ipcRenderer.invoke('grades:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('grades:delete', id),
+    batchDelete: (ids: number[]) => ipcRenderer.invoke('grades:batchDelete', ids),
+    getStats: (params?: any) => ipcRenderer.invoke('grades:getStats', params),
+    getSubjects: () => ipcRenderer.invoke('grades:getSubjects'),
+    getExamTypes: () => ipcRenderer.invoke('grades:getExamTypes'),
+    import: (data: any[]) => ipcRenderer.invoke('grades:import', data),
+    export: (params?: any) => ipcRenderer.invoke('grades:export', params)
   }
 })
 

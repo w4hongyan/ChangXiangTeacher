@@ -3,6 +3,7 @@ import { join } from 'path'
 import { DatabaseManager } from './database'
 import { setupStudentHandlers } from './handlers/student'
 import { setupSeatingHandlers } from './handlers/seating'
+import { setupGradeHandlers } from './handlers/grades'
 
 let mainWindow: BrowserWindow
 const dbManager = new DatabaseManager()
@@ -129,8 +130,11 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // 在开发模式下，使用环境变量或默认URL
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3000')
+    const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5175'
+    mainWindow.loadURL(rendererUrl)
+    mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -150,6 +154,9 @@ app.whenReady().then(() => {
   
   // 设置排位管理handlers
   setupSeatingHandlers(dbManager)
+  
+  // 设置成绩管理handlers
+  setupGradeHandlers(dbManager)
 
   createWindow()
 
