@@ -1,7 +1,7 @@
 <template>
   <div class="header">
     <div class="header-left">
-      <h1 class="page-title">{{ $route.meta.title || '畅想教师工具' }}</h1>
+      <h1 class="page-title">{{ $route.meta.title || '畅享教学工具' }}</h1>
     </div>
 
     <div class="header-right">

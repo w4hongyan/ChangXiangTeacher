@@ -41,7 +41,7 @@
       v-model:current-page="currentPage"
       v-model:page-size="pageSize"
       :page-sizes="[10, 20, 50, 100]"
-      :total="filteredClasses.length"
+      :total="filteredClassesAll.length"
       layout="total, sizes, prev, pager, next, jumper"
       style="margin-top: 16px; text-align: right"
     />
@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useClassStore } from '../stores/class'
@@ -68,15 +68,19 @@ const pageSize = ref(10)
 const loading = computed(() => classStore.loading)
 const classes = computed(() => classStore.classes)
 
-const filteredClasses = computed(() => {
-  const filtered = classes.value.filter(cls => 
+// 过滤后的班级数据（用于计算总数）
+const filteredClassesAll = computed(() => {
+  return classes.value.filter(cls => 
     cls.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
     cls.homeroom_teacher.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
-  
+})
+
+// 当前页显示的班级数据
+const filteredClasses = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return filtered.slice(start, end)
+  return filteredClassesAll.value.slice(start, end)
 })
 
 const handleAdd = () => {
@@ -111,6 +115,11 @@ const handleDelete = async (row: Class) => {
     }
   }
 }
+
+// 监听搜索查询变化，重置分页
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
 
 onMounted(() => {
   classStore.fetchClasses()

@@ -12,9 +12,9 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    port: 5173,
     strictPort: false,
-    host: '127.0.0.1'
+    host: '0.0.0.0'
   },
   clearScreen: false
 })

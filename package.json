@@ -68,7 +68,7 @@
   },
   "build": {
     "appId": "com.changxiang.teacher",
-    "productName": "畅想教师教学工具",
+    "productName": "畅享教学工具",
     "directories": {
       "output": "release"
     },

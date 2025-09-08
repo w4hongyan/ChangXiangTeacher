@@ -3,7 +3,7 @@
     <div class="sidebar-header">
       <div class="logo" v-show="!settingsStore.sidebarCollapsed">
         <el-icon class="logo-icon"><School /></el-icon>
-        <span class="logo-text">畅想教师</span>
+        <span class="logo-text">畅享教学</span>
       </div>
       <div class="logo-mini" v-show="settingsStore.sidebarCollapsed">
         <el-icon class="logo-icon"><School /></el-icon>

@@ -1,4 +1,4 @@
-# 畅想教师教学工具 🎓
+# 畅享教学工具 🎓
 
 基于 Electron + Vue 3 + SQLite 开发的现代化教师教学管理软件，专为中小学教师量身打造。
 
@@ -303,7 +303,7 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 ---
 
 <div align="center">
-  <p><strong>畅想教师教学工具</strong> - 让教学管理更智能、更高效</p>
+  <p><strong>畅享教学工具</strong> - 让教学管理更智能、更高效</p>
   <p><em>当前版本：v2.0.0-roadmap</em></p>
   
   ### 功能状态一览
