@@ -2,13 +2,17 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { DatabaseManager } from './database'
 import { setupStudentHandlers } from './handlers/student'
-import { setupSeatingHandlers } from './handlers/seating'
 import { setupGradeHandlers } from './handlers/grades'
+import { setupSeatingHandlers } from './handlers/seating'
 import { setupPointHandlers } from './handlers/point'
 import { setupGroupHandlers } from './handlers/group'
+import { setupScheduleHandlers } from './handlers/schedule'
+import { setupCalendarHandlers } from './handlers/calendar'
+import { setupDocumentHandlers } from './handlers/document'
+import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
 let mainWindow: BrowserWindow
-const dbManager = new DatabaseManager()
+let dbManager: DatabaseManager
 
 // IPC handlers for class management
 ipcMain.handle('classes:getAll', async () => {
@@ -105,66 +109,150 @@ ipcMain.handle('classes:delete', async (_, id: number) => {
   }
 })
 
-function createWindow(): void {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 1000,
-    minHeight: 600,
-    show: false,
-    autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      nodeIntegration: false
+// 添加批量升级班级的处理程序
+ipcMain.handle('classes:batchUpgrade', async (_, options) => {
+  try {
+    const { targetYear } = options || {};
+    const currentYear = targetYear || new Date().getFullYear();
+    
+    // 定义年级升级映射关系
+    const gradeUpgradeMap = {
+      '一年级': '二年级',
+      '二年级': '三年级',
+      '三年级': '四年级',
+      '四年级': '五年级',
+      '五年级': '六年级',
+      '六年级': '七年级',
+      '七年级': '八年级',
+      '八年级': '九年级',
+      '九年级': '十年级',
+      '十年级': '十一年级',
+      '十一年级': '十二年级',
+      '十二年级': '毕业班'
+    };
+    
+    // 获取所有活跃班级
+    const classes = await dbManager.all(`
+      SELECT id, grade, year FROM classes WHERE is_active = 1
+    `);
+    
+    // 批量更新班级年级和学年
+    let updatedCount = 0;
+    for (const classData of classes) {
+      const newGrade = gradeUpgradeMap[classData.grade] || classData.grade;
+      const newYear = classData.year ? classData.year + 1 : currentYear;
+      
+      await dbManager.run(`
+        UPDATE classes 
+        SET grade = ?, year = ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+      `, [newGrade, newYear, classData.id]);
+      
+      updatedCount++;
     }
-  })
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  // 在开发模式下，使用环境变量或默认URL
-  if (process.env.NODE_ENV === 'development') {
-    const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5175'
-    mainWindow.loadURL(rendererUrl)
-    mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    
+    return { success: true, updatedCount };
+  } catch (error) {
+    console.error('批量升级班级失败:', error);
+    return { success: false, error: error.message };
   }
-}
+})
+
+// 添加获取首页统计数据的处理程序
+ipcMain.handle('dashboard:getStats', async () => {
+  try {
+    // 获取班级数量
+    const classCountResult = await dbManager.get(`
+      SELECT COUNT(*) as count FROM classes WHERE is_active = 1
+    `);
+    const classCount = classCountResult?.count || 0;
+
+    // 获取学生总数
+    const studentCountResult = await dbManager.get(`
+      SELECT COUNT(*) as count FROM students WHERE is_active = 1
+    `);
+    const studentCount = studentCountResult?.count || 0;
+
+    // 获取本月考试次数
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    const examCountResult = await dbManager.get(`
+      SELECT COUNT(*) as count FROM grades 
+      WHERE exam_date >= ? AND exam_date <= ?
+    `, [
+      firstDayOfMonth.toISOString().split('T')[0],
+      lastDayOfMonth.toISOString().split('T')[0]
+    ]);
+    const examCount = examCountResult?.count || 0;
+
+    // 获取积分排名前10的学生
+    const topStudents = await dbManager.all(`
+      SELECT 
+        s.name as student_name,
+        SUM(p.points) as total_points
+      FROM students s
+      LEFT JOIN points p ON s.id = p.student_id
+      WHERE s.is_active = 1
+      GROUP BY s.id, s.name
+      ORDER BY total_points DESC
+      LIMIT 10
+    `);
+
+    // 模拟最近活动数据
+    const recentActivities = [
+      { title: '新增班级', time: new Date().toISOString() },
+      { title: '学生成绩录入', time: new Date(Date.now() - 86400000).toISOString() }, // 1天前
+      { title: '座位调整完成', time: new Date(Date.now() - 172800000).toISOString() }, // 2天前
+      { title: '积分规则更新', time: new Date(Date.now() - 259200000).toISOString() }, // 3天前
+      { title: '学生信息导入', time: new Date(Date.now() - 345600000).toISOString() } // 4天前
+    ];
+
+    return {
+      success: true,
+      data: {
+        classCount,
+        studentCount,
+        examCount,
+        topStudents,
+        recentActivities
+      }
+    };
+  } catch (error) {
+    console.error('获取首页统计数据失败:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 app.whenReady().then(() => {
-  // 设置应用ID
+  // Set app user model id for windows
+  electronApp.setAppUserModelId('com.electron')
+
+  // Default open or close DevTools by F12 in development
+  // and ignore CommandOrControl + R in production.
+  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  app.on('browser-window-created', (_, window) => {
+    optimizer.watchWindowShortcuts(window)
+  })
+
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.changxiang.teacher')
   }
 
   // 初始化数据库
+  dbManager = new DatabaseManager()
   dbManager.initialize()
 
-  // 设置学生管理handlers
+  // 设置IPC处理程序
   setupStudentHandlers(dbManager)
-  
-  // 设置排位管理handlers
-  setupSeatingHandlers(dbManager)
-  
-  // 设置成绩管理handlers
   setupGradeHandlers(dbManager)
-  
-  // 设置积分管理handlers
+  setupSeatingHandlers(dbManager)
   setupPointHandlers(dbManager)
-  
-  // 设置小组管理handlers
   setupGroupHandlers(dbManager)
+  setupScheduleHandlers(dbManager)
+  setupCalendarHandlers(dbManager)
+  setupDocumentHandlers(dbManager)
 
   createWindow()
 

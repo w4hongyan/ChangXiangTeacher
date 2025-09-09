@@ -2,6 +2,35 @@ import { ipcMain, IpcMainInvokeEvent } from 'electron'
 import type { DatabaseManager } from '../database'
 import type { Group, GroupFormData, StudentGroup } from '../../renderer/types/group'
 
+// 确保日期字段是字符串格式的辅助函数
+function ensureStringDates(obj: any): any {
+  if (!obj) return obj;
+  
+  // 如果是日期对象，直接转换为ISO字符串
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+  
+  // 如果是数组，递归处理每个元素
+  if (Array.isArray(obj)) {
+    return obj.map(item => ensureStringDates(item));
+  }
+  
+  // 如果是对象，递归处理每个属性
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = ensureStringDates(obj[key]);
+      }
+    }
+    return result;
+  }
+  
+  // 其他类型直接返回
+  return obj;
+}
+
 export function setupGroupHandlers(db: DatabaseManager) {
   // 创建小组
   const handleCreateGroup = async (_: IpcMainInvokeEvent, data: GroupFormData) => {
@@ -28,7 +57,10 @@ export function setupGroupHandlers(db: DatabaseManager) {
       // 返回创建的小组
       const newGroup = await db.get('SELECT * FROM groups WHERE id = ?', [Number(groupId)])
       
-      return { success: true, data: newGroup }
+      // 确保日期字段是字符串格式
+      const formattedGroup = ensureStringDates(newGroup);
+      
+      return { success: true, data: formattedGroup }
     } catch (error) {
       console.error('创建小组失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '创建小组失败' }
@@ -50,7 +82,10 @@ export function setupGroupHandlers(db: DatabaseManager) {
       
       const groups = await db.all(query, [class_id])
       
-      return { success: true, data: groups }
+      // 确保日期字段是字符串格式
+      const formattedGroups = groups.map(group => ensureStringDates(group));
+      
+      return { success: true, data: formattedGroups }
     } catch (error) {
       console.error('获取小组列表失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '获取小组列表失败' }
@@ -79,7 +114,11 @@ export function setupGroupHandlers(db: DatabaseManager) {
       `
       const members = await db.all(membersQuery, [id])
       
-      return { success: true, data: { ...group, members } }
+      // 确保日期字段是字符串格式
+      const formattedGroup = ensureStringDates(group);
+      const formattedMembers = members.map(member => ensureStringDates(member));
+      
+      return { success: true, data: { ...formattedGroup, members: formattedMembers } }
     } catch (error) {
       console.error('获取小组详情失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '获取小组详情失败' }
@@ -112,7 +151,10 @@ export function setupGroupHandlers(db: DatabaseManager) {
       // 返回更新后的小组
       const updatedGroup = await db.get('SELECT * FROM groups WHERE id = ?', [id])
       
-      return { success: true, data: updatedGroup }
+      // 确保日期字段是字符串格式
+      const formattedGroup = ensureStringDates(updatedGroup);
+      
+      return { success: true, data: formattedGroup }
     } catch (error) {
       console.error('更新小组失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '更新小组失败' }
@@ -190,7 +232,10 @@ export function setupGroupHandlers(db: DatabaseManager) {
       
       const points = await db.all(query, [group_id])
       
-      return { success: true, data: points }
+      // 确保日期字段是字符串格式
+      const formattedPoints = points.map(point => ensureStringDates(point));
+      
+      return { success: true, data: formattedPoints }
     } catch (error) {
       console.error('获取小组积分记录失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '获取小组积分记录失败' }

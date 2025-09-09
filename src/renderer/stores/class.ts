@@ -88,6 +88,27 @@ export const useClassStore = defineStore('class', () => {
     }
   }
 
+  // 批量升级班级
+  async function batchUpgradeClasses(options?: { targetYear?: number }) {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await window.electronAPI.classes.batchUpgrade(options)
+      if (result.success) {
+        await fetchClasses() // 重新获取列表
+        return { success: true, updatedCount: result.updatedCount }
+      } else {
+        error.value = result.error
+        return { success: false, error: result.error }
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '批量升级班级失败'
+      return { success: false, error: error.value }
+    } finally {
+      loading.value = false
+    }
+  }
+
   // 根据ID获取班级
   async function getClassById(id: number) {
     loading.value = true
@@ -116,6 +137,7 @@ export const useClassStore = defineStore('class', () => {
     createClass,
     updateClass,
     deleteClass,
+    batchUpgradeClasses,
     getClassById
   }
 })

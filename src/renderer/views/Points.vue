@@ -241,7 +241,15 @@
               </template>
               
               <el-table :data="pointRules" style="width: 100%">
-                <el-table-column prop="name" label="规则名称" />
+                <el-table-column prop="name" label="规则名称">
+                  <template #default="scope">
+                    <el-input 
+                      v-model="scope.row.name" 
+                      placeholder="请输入规则名称"
+                      size="small"
+                    />
+                  </template>
+                </el-table-column>
                 <el-table-column prop="points" label="积分值">
                   <template #default="scope">
                     <el-input-number 

@@ -1,9 +1,14 @@
 <template>
   <div class="class-list">
     <div class="header">
-      <el-button type="primary" @click="handleAdd" :icon="Plus">
-        添加班级
-      </el-button>
+      <div class="header-left">
+        <el-button type="primary" @click="handleAdd" :icon="Plus">
+          添加班级
+        </el-button>
+        <el-button type="success" @click="handleBatchUpgrade" :icon="Upload" :loading="upgradeLoading">
+          批量升级
+        </el-button>
+      </div>
       <el-input
         v-model="searchQuery"
         placeholder="搜索班级名称或班主任"
@@ -50,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { Plus, Search, Upload } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useClassStore } from '../stores/class'
 import type { Class } from '../types/class'
@@ -64,6 +69,7 @@ const classStore = useClassStore()
 const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
+const upgradeLoading = ref(false)
 
 const loading = computed(() => classStore.loading)
 const classes = computed(() => classStore.classes)
@@ -116,6 +122,36 @@ const handleDelete = async (row: Class) => {
   }
 }
 
+// 处理批量升级
+const handleBatchUpgrade = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要批量升级所有班级吗？此操作将把所有班级升级到下一年级。',
+      '确认批量升级',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    upgradeLoading.value = true
+    const result = await classStore.batchUpgradeClasses()
+    upgradeLoading.value = false
+    
+    if (result.success) {
+      ElMessage.success(`批量升级成功，共升级了 ${result.updatedCount} 个班级`)
+    } else {
+      ElMessage.error(result.error || '批量升级失败')
+    }
+  } catch (error) {
+    upgradeLoading.value = false
+    if (error !== 'cancel') {
+      ElMessage.error('批量升级操作失败')
+    }
+  }
+}
+
 // 监听搜索查询变化，重置分页
 watch(searchQuery, () => {
   currentPage.value = 1
@@ -136,5 +172,10 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.header-left {
+  display: flex;
+  gap: 12px;
 }
 </style>

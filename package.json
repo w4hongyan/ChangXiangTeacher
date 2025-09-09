@@ -32,6 +32,7 @@
   "author": "ChangXiang Team",
   "license": "MIT",
   "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.14.0",

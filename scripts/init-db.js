@@ -143,6 +143,66 @@ const createTablesSQL = [
     FOREIGN KEY (group_id) REFERENCES groups (id),
     FOREIGN KEY (student_id) REFERENCES students (id),
     UNIQUE(group_id, student_id)
+  )`,
+  
+  // 添加课程表
+  `CREATE TABLE IF NOT EXISTS schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER,
+    teacher_id INTEGER,
+    teacher_name TEXT,
+    subject TEXT NOT NULL,
+    day_of_week INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    classroom TEXT,
+    notes TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes (id)
+  )`,
+  
+  // 添加学期表
+  `CREATE TABLE IF NOT EXISTS semesters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    year INTEGER NOT NULL,
+    is_current BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  
+  // 添加日历事件表
+  `CREATE TABLE IF NOT EXISTS calendar_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    event_date DATE NOT NULL,
+    event_type TEXT DEFAULT 'event',
+    color TEXT DEFAULT '#409EFF',
+    is_holiday BOOLEAN DEFAULT 0,
+    semester_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (semester_id) REFERENCES semesters (id)
+  )`,
+  
+  // 添加文档模板表
+  `CREATE TABLE IF NOT EXISTS document_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL,
+    content TEXT,
+    file_path TEXT,
+    file_size INTEGER,
+    download_count INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`
 ]
 
