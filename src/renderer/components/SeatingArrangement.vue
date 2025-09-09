@@ -2434,6 +2434,3 @@ onUnmounted(() => {
 
 
 </style>
-</template>
-
-<script setup lang="ts">

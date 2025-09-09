@@ -98,6 +98,7 @@ const createTablesSQL = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     student_id INTEGER,
     class_id INTEGER,
+    group_id INTEGER,
     points INTEGER NOT NULL,
     type TEXT NOT NULL,
     reason TEXT NOT NULL,
@@ -106,7 +107,8 @@ const createTablesSQL = [
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students (id),
-    FOREIGN KEY (class_id) REFERENCES classes (id)
+    FOREIGN KEY (class_id) REFERENCES classes (id),
+    FOREIGN KEY (group_id) REFERENCES groups (id)
   )`,
 
   `CREATE TABLE IF NOT EXISTS class_configs (
@@ -119,6 +121,28 @@ const createTablesSQL = [
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (class_id) REFERENCES classes (id)
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    class_id INTEGER,
+    description TEXT,
+    created_by INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes (id)
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS student_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER,
+    student_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (group_id) REFERENCES groups (id),
+    FOREIGN KEY (student_id) REFERENCES students (id),
+    UNIQUE(group_id, student_id)
   )`
 ]
 

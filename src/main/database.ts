@@ -171,6 +171,43 @@ export class DatabaseManager {
       })
     }
     
+    // 创建小组表
+    await this.db.schema.hasTable('groups').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('groups', (table) => {
+          table.increments('id').primary()
+          table.string('name').notNullable() // 小组名称
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.text('description') // 小组描述
+          table.integer('created_by').defaultTo(1) // 创建者ID
+          table.timestamps(true, true)
+        })
+      }
+    })
+    
+    // 创建学生小组关联表
+    await this.db.schema.hasTable('student_groups').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('student_groups', (table) => {
+          table.increments('id').primary()
+          table.integer('group_id').unsigned().references('id').inTable('groups')
+          table.integer('student_id').unsigned().references('id').inTable('students')
+          table.timestamps(true, true)
+          
+          // 确保一个学生在一个小组中只能出现一次
+          table.unique(['group_id', 'student_id'])
+        })
+      }
+    })
+    
+    // 检查积分表是否支持小组积分
+    const hasGroupId = await this.db.schema.hasColumn('points', 'group_id')
+    if (!hasGroupId) {
+      await this.db.schema.alterTable('points', (table) => {
+        table.integer('group_id').unsigned().references('id').inTable('groups').nullable()
+      })
+    }
+    
     // 检查并处理座位表的数据一致性（移除重复的学生座位记录）
     try {
       // 清除重复的学生座位记录（保留最新的记录）

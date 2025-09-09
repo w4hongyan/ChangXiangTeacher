@@ -50,6 +50,24 @@ declare global {
         import: (data: any[]) => Promise<any>
         export: (params?: any) => Promise<any>
       }
+      points: {
+        list: (params?: any) => Promise<any>
+        create: (data: any) => Promise<any>
+        delete: (id: number) => Promise<any>
+        getStudentSummary: (class_id: number) => Promise<any>
+        getRules: (class_id: number) => Promise<any>
+        updateRules: (class_id: number, rules: any[]) => Promise<any>
+      }
+      groups: {
+        create: (data: any) => Promise<any>
+        list: (class_id: number) => Promise<any>
+        getById: (id: number) => Promise<any>
+        update: (id: number, data: any) => Promise<any>
+        delete: (id: number) => Promise<any>
+        addMember: (group_id: number, student_id: number) => Promise<any>
+        removeMember: (group_id: number, student_id: number) => Promise<any>
+        getPoints: (group_id: number) => Promise<any>
+      }
     }
   }
 }
@@ -101,6 +119,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getExamTypes: () => ipcRenderer.invoke('grades:getExamTypes'),
     import: (data: any[]) => ipcRenderer.invoke('grades:import', data),
     export: (params?: any) => ipcRenderer.invoke('grades:export', params)
+  },
+  points: {
+    list: (params?: any) => ipcRenderer.invoke('points:list', params),
+    create: (data: any) => ipcRenderer.invoke('points:create', data),
+    delete: (id: number) => ipcRenderer.invoke('points:delete', id),
+    getStudentSummary: (class_id: number) => ipcRenderer.invoke('points:getStudentSummary', class_id),
+    getRules: (class_id: number) => ipcRenderer.invoke('points:getRules', class_id),
+    updateRules: (class_id: number, rules: any[]) => ipcRenderer.invoke('points:updateRules', class_id, rules)
+  },
+  groups: {
+    create: (data: any) => ipcRenderer.invoke('groups:create', data),
+    list: (class_id: number) => ipcRenderer.invoke('groups:list', class_id),
+    getById: (id: number) => ipcRenderer.invoke('groups:getById', id),
+    update: (id: number, data: any) => ipcRenderer.invoke('groups:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('groups:delete', id),
+    addMember: (group_id: number, student_id: number) => ipcRenderer.invoke('groups:addMember', group_id, student_id),
+    removeMember: (group_id: number, student_id: number) => ipcRenderer.invoke('groups:removeMember', group_id, student_id),
+    getPoints: (group_id: number) => ipcRenderer.invoke('groups:getPoints', group_id)
   }
 })
 

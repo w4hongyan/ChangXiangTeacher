@@ -4,6 +4,7 @@ import type { Student, StudentListItem, StudentQueryParams, StudentFormData } fr
 
 export const useStudentStore = defineStore('student', () => {
   const students = ref<StudentListItem[]>([])
+  const classes = ref<any[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
   const total = ref(0)
@@ -40,6 +41,26 @@ export const useStudentStore = defineStore('student', () => {
     } finally {
       loading.value = false
       console.log('Student store loading state set to false.'); // Log loading state
+    }
+  }
+
+  // 获取班级列表
+  async function fetchClasses() {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await window.electronAPI.students.getClasses()
+      if (result.success) {
+        classes.value = Array.isArray(result.data) ? result.data : []
+      } else {
+        error.value = result.error
+        classes.value = []
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '获取班级列表失败'
+      classes.value = []
+    } finally {
+      loading.value = false
     }
   }
 
@@ -191,6 +212,7 @@ export const useStudentStore = defineStore('student', () => {
   // 重置状态
   function resetState() {
     students.value = []
+    classes.value = []
     error.value = null
     total.value = 0
     currentPage.value = 1
@@ -198,6 +220,7 @@ export const useStudentStore = defineStore('student', () => {
 
   return {
     students: computed(() => students.value),
+    classes: computed(() => classes.value),
     loading: computed(() => loading.value),
     error: computed(() => error.value),
     total: computed(() => total.value),
@@ -205,6 +228,7 @@ export const useStudentStore = defineStore('student', () => {
     pageSize: computed(() => pageSize.value),
     
     fetchStudents,
+    fetchClasses,
     createStudent,
     updateStudent,
     deleteStudent,

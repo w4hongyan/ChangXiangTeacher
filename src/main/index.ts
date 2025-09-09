@@ -4,6 +4,8 @@ import { DatabaseManager } from './database'
 import { setupStudentHandlers } from './handlers/student'
 import { setupSeatingHandlers } from './handlers/seating'
 import { setupGradeHandlers } from './handlers/grades'
+import { setupPointHandlers } from './handlers/point'
+import { setupGroupHandlers } from './handlers/group'
 
 let mainWindow: BrowserWindow
 const dbManager = new DatabaseManager()
@@ -157,6 +159,12 @@ app.whenReady().then(() => {
   
   // 设置成绩管理handlers
   setupGradeHandlers(dbManager)
+  
+  // 设置积分管理handlers
+  setupPointHandlers(dbManager)
+  
+  // 设置小组管理handlers
+  setupGroupHandlers(dbManager)
 
   createWindow()
 
