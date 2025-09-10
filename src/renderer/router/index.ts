@@ -51,6 +51,30 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/schedule',
+    name: 'Schedule',
+    component: () => import('../views/Schedule.vue'),
+    meta: {
+      title: '课程表管理'
+    }
+  },
+  {
+    path: '/calendar',
+    name: 'Calendar',
+    component: () => import('../views/Calendar.vue'),
+    meta: {
+      title: '学期日历'
+    }
+  },
+  {
+    path: '/templates',
+    name: 'Templates',
+    component: () => import('../views/Templates.vue'),
+    meta: {
+      title: '文档模板'
+    }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue'),

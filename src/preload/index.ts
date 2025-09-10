@@ -68,6 +68,34 @@ declare global {
         removeMember: (group_id: number, student_id: number) => Promise<any>
         getPoints: (group_id: number) => Promise<any>
       }
+      schedules: {
+        list: (params?: any) => Promise<any>
+        getById: (id: number) => Promise<any>
+        create: (data: any) => Promise<any>
+        update: (id: number, data: any) => Promise<any>
+        delete: (id: number) => Promise<any>
+        getByClass: (classId: number) => Promise<any>
+        import: (data: any) => Promise<any>
+        export: (params?: any) => Promise<any>
+      }
+      calendar: {
+        list: (params?: any) => Promise<any>
+        getById: (id: number) => Promise<any>
+        create: (data: any) => Promise<any>
+        update: (id: number, data: any) => Promise<any>
+        delete: (id: number) => Promise<any>
+        getByDateRange: (startDate: string, endDate: string) => Promise<any>
+        getUpcoming: (days?: number) => Promise<any>
+      }
+      templates: {
+        list: (params?: any) => Promise<any>
+        getById: (id: number) => Promise<any>
+        create: (data: any) => Promise<any>
+        update: (id: number, data: any) => Promise<any>
+        delete: (id: number) => Promise<any>
+        generate: (templateId: number, data: any) => Promise<any>
+        preview: (templateId: number, data: any) => Promise<any>
+      }
     }
   }
 }
@@ -137,6 +165,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addMember: (group_id: number, student_id: number) => ipcRenderer.invoke('groups:addMember', group_id, student_id),
     removeMember: (group_id: number, student_id: number) => ipcRenderer.invoke('groups:removeMember', group_id, student_id),
     getPoints: (group_id: number) => ipcRenderer.invoke('groups:getPoints', group_id)
+  },
+  schedules: {
+    list: (params?: any) => ipcRenderer.invoke('schedules:list', params),
+    getById: (id: number) => ipcRenderer.invoke('schedules:getById', id),
+    create: (data: any) => ipcRenderer.invoke('schedules:create', data),
+    update: (id: number, data: any) => ipcRenderer.invoke('schedules:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('schedules:delete', id),
+    getByClass: (classId: number) => ipcRenderer.invoke('schedules:getByClass', classId),
+    import: (data: any) => ipcRenderer.invoke('schedules:import', data),
+    export: (params?: any) => ipcRenderer.invoke('schedules:export', params)
+  },
+  calendar: {
+    list: (params?: any) => ipcRenderer.invoke('calendar:list', params),
+    getById: (id: number) => ipcRenderer.invoke('calendar:getById', id),
+    create: (data: any) => ipcRenderer.invoke('calendar:create', data),
+    update: (id: number, data: any) => ipcRenderer.invoke('calendar:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('calendar:delete', id),
+    getByDateRange: (startDate: string, endDate: string) => ipcRenderer.invoke('calendar:getByDateRange', startDate, endDate),
+    getUpcoming: (days?: number) => ipcRenderer.invoke('calendar:getUpcoming', days)
+  },
+  templates: {
+    list: (params?: any) => ipcRenderer.invoke('templates:list', params),
+    getById: (id: number) => ipcRenderer.invoke('templates:getById', id),
+    create: (data: any) => ipcRenderer.invoke('templates:create', data),
+    update: (id: number, data: any) => ipcRenderer.invoke('templates:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('templates:delete', id),
+    generate: (templateId: number, data: any) => ipcRenderer.invoke('templates:generate', templateId, data),
+    preview: (templateId: number, data: any) => ipcRenderer.invoke('templates:preview', templateId, data)
   }
 })
 

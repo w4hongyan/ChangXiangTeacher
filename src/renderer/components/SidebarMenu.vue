@@ -46,6 +46,21 @@
         <template #title>积分管理</template>
       </el-menu-item>
 
+      <el-menu-item index="/schedule">
+        <el-icon><Calendar /></el-icon>
+        <template #title>课程表管理</template>
+      </el-menu-item>
+
+      <el-menu-item index="/calendar">
+        <el-icon><Clock /></el-icon>
+        <template #title>学期日历</template>
+      </el-menu-item>
+
+      <el-menu-item index="/templates">
+        <el-icon><Document /></el-icon>
+        <template #title>文档模板</template>
+      </el-menu-item>
+
       <el-menu-item index="/settings">
         <el-icon><Setting /></el-icon>
         <template #title>系统设置</template>
@@ -75,6 +90,9 @@ import {
   Grid,
   TrendCharts,
   Trophy,
+  Calendar,
+  Clock,
+  Document,
   Setting,
   DArrowLeft,
   DArrowRight

@@ -2,10 +2,13 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { DatabaseManager } from './database'
 import { setupStudentHandlers } from './handlers/student'
-import { setupSeatingHandlers } from './handlers/seating'
 import { setupGradeHandlers } from './handlers/grades'
-import { setupPointHandlers } from './handlers/point'
+import { setupSeatingHandlers } from './handlers/seating'
 import { setupGroupHandlers } from './handlers/group'
+import { setupPointHandlers } from './handlers/point'
+import { setupScheduleHandlers } from './handlers/schedule'
+import { setupCalendarHandlers } from './handlers/calendar'
+import { setupTemplateHandlers } from './handlers/template'
 
 let mainWindow: BrowserWindow
 const dbManager = new DatabaseManager()
@@ -165,6 +168,15 @@ app.whenReady().then(() => {
   
   // 设置小组管理handlers
   setupGroupHandlers(dbManager)
+  
+  // 设置课程表管理handlers
+  setupScheduleHandlers(dbManager)
+  
+  // 设置学期日历handlers
+  setupCalendarHandlers(dbManager)
+  
+  // 设置文档模板handlers
+  setupTemplateHandlers(dbManager)
 
   createWindow()
 

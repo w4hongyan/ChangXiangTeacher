@@ -22,24 +22,43 @@ export class DatabaseManager {
       useNullAsDefault: true,
       pool: {
         min: 1,
-        max: 1
+        max: 1,
+        afterCreate: (conn: any, done: any) => {
+          // 设置SQLite使用UTF-8编码
+          conn.run('PRAGMA encoding = "UTF-8"', (err: any) => {
+            if (err) {
+              console.error('设置编码失败:', err)
+            } else {
+              console.log('SQLite编码设置为UTF-8')
+            }
+            done(err)
+          })
+        }
       }
     })
   }
 
   async initialize(): Promise<void> {
     try {
-      // 确保数据库目录存在
+      // 确保数据目录存在
       const dbDir = path.dirname(this.dbPath)
       if (!fs.existsSync(dbDir)) {
         fs.mkdirSync(dbDir, { recursive: true })
+        console.log('创建数据目录:', dbDir)
       }
-
-      // 创建所有必要的表
+      
+      console.log('开始创建数据库表...')
       await this.createTables()
+      console.log('数据库表创建完成')
+      
+      // 验证表是否创建成功
+      const tables = await this.db.raw("SELECT name FROM sqlite_master WHERE type='table'")
+      console.log('已创建的表:', tables.map((t: any) => t.name))
+      
       console.log('数据库初始化完成')
     } catch (error) {
       console.error('数据库初始化失败:', error)
+      throw error
     }
   }
 
@@ -223,6 +242,73 @@ export class DatabaseManager {
     } catch (error) {
       console.log('清理重复座位记录时出错（正常）:', error)
     }
+
+    // 课程表
+    await this.db.schema.hasTable('schedules').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('schedules', (table) => {
+          table.increments('id').primary()
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.string('subject').notNullable() // 科目名称
+          table.string('teacher_name') // 任课教师
+          table.integer('day_of_week').notNullable() // 星期几 (1-7)
+          table.integer('period').notNullable() // 第几节课 (1-8)
+          table.string('classroom') // 教室
+          table.string('semester').notNullable() // 学期
+          table.integer('year').notNullable() // 学年
+          table.time('start_time') // 开始时间
+          table.time('end_time') // 结束时间
+          table.text('notes') // 备注
+          table.boolean('is_active').defaultTo(true)
+          table.timestamps(true, true)
+          
+          // 确保同一班级、同一时间段只能有一门课
+          table.unique(['class_id', 'day_of_week', 'period', 'semester', 'year'])
+        })
+      }
+    })
+
+    // 学期日历事件表
+    await this.db.schema.hasTable('calendar_events').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('calendar_events', (table) => {
+          table.increments('id').primary()
+          table.string('title').notNullable() // 事件标题
+          table.text('description') // 事件描述
+          table.date('event_date').notNullable() // 事件日期
+          table.time('start_time') // 开始时间
+          table.time('end_time') // 结束时间
+          table.string('event_type').notNullable() // 事件类型：exam, holiday, activity, meeting, deadline
+          table.string('color').defaultTo('#409EFF') // 事件颜色
+          table.integer('class_id').unsigned().references('id').inTable('classes').nullable() // 关联班级（可选）
+          table.boolean('is_reminder').defaultTo(false) // 是否提醒
+          table.integer('reminder_minutes').defaultTo(30) // 提前提醒分钟数
+          table.string('semester').notNullable() // 学期
+          table.integer('year').notNullable() // 学年
+          table.boolean('is_active').defaultTo(true)
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 文档模板表
+    await this.db.schema.hasTable('document_templates').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('document_templates', (table) => {
+          table.increments('id').primary()
+          table.string('name').notNullable() // 模板名称
+          table.string('category').notNullable() // 模板分类：class_list, grade_report, attendance, notice, certificate
+          table.text('description') // 模板描述
+          table.json('template_content') // 模板内容（JSON格式）
+          table.json('fields') // 可填充字段配置
+          table.string('file_type').defaultTo('pdf') // 输出文件类型：pdf, docx, xlsx
+          table.boolean('is_system').defaultTo(false) // 是否系统内置模板
+          table.boolean('is_active').defaultTo(true)
+          table.integer('created_by').defaultTo(1) // 创建者ID
+          table.timestamps(true, true)
+        })
+      }
+    })
   }
 
   async query(sql: string, params: any[] = []): Promise<any> {
