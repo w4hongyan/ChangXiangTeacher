@@ -33,7 +33,7 @@
               <el-avatar :size="40" :src="activity.avatar" />
               <div class="activity-content">
                 <div class="activity-title">{{ activity.title }}</div>
-                <div class="activity-time">{{ formatDate(activity.time) }}</div>
+                <div class="activity-time">{{ activity.time }}</div>
               </div>
             </div>
           </div>
@@ -84,31 +84,50 @@ import Layout from './Layout.vue'
 const stats = ref([
   {
     title: '班级数量',
-    number: 0,
+    number: 9,
     icon: 'School',
     color: '#667eea'
   },
   {
     title: '学生总数',
-    number: 0,
+    number: 320,
     icon: 'User',
     color: '#764ba2'
   },
   {
     title: '本月考试',
-    number: 0,
+    number: 12,
     icon: 'TrendCharts',
     color: '#f093fb'
   },
   {
     title: '积分排名',
-    number: 0,
+    number: 5,
     icon: 'Trophy',
     color: '#4facfe'
   }
 ])
 
-const recentActivities = ref([])
+const recentActivities = ref([
+  {
+    id: 1,
+    title: '张三同学在数学月考中获得95分',
+    time: '2小时前',
+    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+  },
+  {
+    id: 2,
+    title: '为七年级1班调整了座位安排',
+    time: '5小时前',
+    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+  },
+  {
+    id: 3,
+    title: '李同学因帮助同学获得5积分奖励',
+    time: '1天前',
+    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+  }
+])
 
 const quickActions = ref([
   { name: '添加学生', icon: 'Plus', path: '/students/add' },
@@ -117,58 +136,8 @@ const quickActions = ref([
   { name: '系统设置', icon: 'Setting', path: '/settings' }
 ])
 
-// 格式化日期显示
-const formatDate = (dateString) => {
-  const now = new Date()
-  const date = new Date(dateString)
-  const diffTime = Math.abs(now - date)
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
-  if (diffDays === 1) {
-    return '今天'
-  } else if (diffDays === 2) {
-    return '昨天'
-  } else if (diffDays <= 7) {
-    return `${diffDays - 1}天前`
-  } else {
-    return date.toLocaleDateString('zh-CN')
-  }
-}
-
-// 获取首页统计数据
-const loadDashboardStats = async () => {
-  try {
-    // 调用主进程获取统计数据
-    const result = await window.electronAPI.dashboard.getStats()
-    
-    if (result.success) {
-      const data = result.data
-      
-      // 更新统计数据
-      stats.value[0].number = data.classCount
-      stats.value[1].number = data.studentCount
-      stats.value[2].number = data.examCount
-      // 显示积分最高的学生积分
-      stats.value[3].number = data.topStudents.length > 0 ? data.topStudents[0].total_points : 0
-      
-      // 更新最近活动
-      recentActivities.value = data.recentActivities.map((activity, index) => ({
-        id: index + 1,
-        title: activity.title,
-        time: activity.time,
-        avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-      }))
-    } else {
-      console.error('获取首页统计数据失败:', result.error)
-    }
-  } catch (error) {
-    console.error('获取首页统计数据时出错:', error)
-  }
-}
-
 onMounted(() => {
-  // 加载实时数据
-  loadDashboardStats()
+  // 这里可以加载实时数据
 })
 </script>
 
