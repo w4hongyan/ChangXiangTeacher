@@ -69,7 +69,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/templates',
     name: 'Templates',
-    component: () => import('../views/Templates.vue'),
+    component: () => import('../views/TemplatesEnhanced.vue'),
     meta: {
       title: '文档模板'
     }

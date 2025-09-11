@@ -26,14 +26,6 @@
           <div class="card-header">
             <span>课程表</span>
             <div class="view-controls">
-              <el-select v-model="currentWeek" placeholder="选择周次" style="width: 120px">
-                <el-option
-                  v-for="week in 20"
-                  :key="week"
-                  :label="`第${week}周`"
-                  :value="week"
-                />
-              </el-select>
               <el-button-group>
                 <el-button :type="viewMode === 'week' ? 'primary' : ''" @click="viewMode = 'week'">周视图</el-button>
                 <el-button :type="viewMode === 'day' ? 'primary' : ''" @click="viewMode = 'day'">日视图</el-button>
@@ -93,13 +85,13 @@
         <el-form-item label="课程名称" prop="subject">
           <el-input v-model="courseForm.subject" placeholder="请输入课程名称" />
         </el-form-item>
-        <el-form-item label="任课教师" prop="teacher">
+        <el-form-item label="任课教师">
           <el-input v-model="courseForm.teacher" placeholder="请输入任课教师" />
         </el-form-item>
-        <el-form-item label="上课地点" prop="location">
+        <el-form-item label="上课地点">
           <el-input v-model="courseForm.location" placeholder="请输入上课地点" />
         </el-form-item>
-        <el-form-item label="星期" prop="dayOfWeek">
+        <el-form-item label="星期">
           <el-select v-model="courseForm.dayOfWeek" placeholder="选择星期">
             <el-option
               v-for="day in weekDays"
@@ -109,7 +101,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="节次" prop="period">
+        <el-form-item label="节次">
           <el-select v-model="courseForm.period" placeholder="选择节次">
             <el-option
               v-for="period in timePeriods"
@@ -118,13 +110,6 @@
               :value="period.id"
             />
           </el-select>
-        </el-form-item>
-        <el-form-item label="周次" prop="weeks">
-          <el-checkbox-group v-model="courseForm.weeks">
-            <el-checkbox v-for="week in 20" :key="week" :label="week">
-              第{{ week }}周
-            </el-checkbox>
-          </el-checkbox-group>
         </el-form-item>
         <el-form-item label="备注">
           <el-input
@@ -180,31 +165,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Upload, Download } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Upload, Download } from '@element-plus/icons-vue'
 import Layout from './Layout.vue'
+import type { Schedule } from '../types/schedule'
+import { useSettingsStore } from '../stores/settings'
 
-interface Schedule {
-  id?: number
-  classId: number
-  subject: string
-  teacher: string
-  location: string
-  dayOfWeek: number
-  period: number
-  weeks: number[]
-  notes?: string
-  createdAt?: string
-  updatedAt?: string
-}
+// 使用统一的Schedule接口，已在types/schedule.ts中定义
 
 const schedules = ref<Schedule[]>([])
 const showAddDialog = ref(false)
 const showDetailDialog = ref(false)
 const editingCourse = ref<Schedule | null>(null)
 const selectedCourse = ref<Schedule | null>(null)
-const currentWeek = ref(1)
 const viewMode = ref('week')
 const courseFormRef = ref()
 
@@ -215,49 +189,49 @@ const courseForm = reactive<Schedule>({
   location: '',
   dayOfWeek: 1,
   period: 1,
-  weeks: [],
   notes: ''
 })
 
 const courseRules = {
-  subject: [{ required: true, message: '请输入课程名称', trigger: 'blur' }],
-  teacher: [{ required: true, message: '请输入任课教师', trigger: 'blur' }],
-  location: [{ required: true, message: '请输入上课地点', trigger: 'blur' }],
-  dayOfWeek: [{ required: true, message: '请选择星期', trigger: 'change' }],
-  period: [{ required: true, message: '请选择节次', trigger: 'change' }],
-  weeks: [{ required: true, message: '请选择周次', trigger: 'change' }]
+  subject: [{ required: true, message: '请输入课程名称', trigger: 'blur' }]
 }
 
-const weekDays = [
-  { label: '周一', value: 1 },
-  { label: '周二', value: 2 },
-  { label: '周三', value: 3 },
-  { label: '周四', value: 4 },
-  { label: '周五', value: 5 }
-]
+// 使用设置store
+const settingsStore = useSettingsStore()
 
-const timePeriods = [
-  { id: 1, name: '第1节', startTime: '08:00', endTime: '08:45' },
-  { id: 2, name: '第2节', startTime: '08:55', endTime: '09:40' },
-  { id: 3, name: '第3节', startTime: '10:00', endTime: '10:45' },
-  { id: 4, name: '第4节', startTime: '10:55', endTime: '11:40' },
-  { id: 5, name: '第5节', startTime: '14:00', endTime: '14:45' },
-  { id: 6, name: '第6节', startTime: '14:55', endTime: '15:40' },
-  { id: 7, name: '第7节', startTime: '16:00', endTime: '16:45' },
-  { id: 8, name: '第8节', startTime: '16:55', endTime: '17:40' }
-]
+// 根据设置生成周次和节次数据
+const weekDays = computed(() => {
+  const days = [
+    { label: '周一', value: 1 },
+    { label: '周二', value: 2 },
+    { label: '周三', value: 3 },
+    { label: '周四', value: 4 },
+    { label: '周五', value: 5 },
+    { label: '周六', value: 6 },
+    { label: '周日', value: 7 }
+  ]
+  return days.slice(0, settingsStore.scheduleSettings.weekDays)
+})
+
+const timePeriods = computed(() => {
+  return settingsStore.scheduleSettings.timePeriods.map((period, index) => ({
+    id: index + 1,
+    name: `第${index + 1}节`,
+    startTime: period.startTime,
+    endTime: period.endTime
+  })).slice(0, settingsStore.scheduleSettings.periodsPerDay)
+})
 
 const getCourse = (dayOfWeek: number, period: number) => {
   return schedules.value.find(s => 
     s.dayOfWeek === dayOfWeek && 
-    s.period === period && 
-    s.weeks?.includes(currentWeek.value)
+    s.period === period
   )
 }
 
 const getTimeText = (dayOfWeek: number, period: number) => {
-  const day = weekDays.find(d => d.value === dayOfWeek)?.label
-  const time = timePeriods.find(p => p.id === period)
+  const day = weekDays.value.find(d => d.value === dayOfWeek)?.label
+  const time = timePeriods.value.find(p => p.id === period)
   return `${day} ${time?.name} (${time?.startTime}-${time?.endTime})`
 }
 
@@ -270,7 +244,6 @@ const handleCellClick = (dayOfWeek: number, period: number) => {
     // 添加新课程
     courseForm.dayOfWeek = dayOfWeek
     courseForm.period = period
-    courseForm.weeks = [currentWeek.value]
     showAddDialog.value = true
   }
 }
@@ -286,23 +259,38 @@ const saveCourse = async () => {
   try {
     await courseFormRef.value.validate()
     
+    // 创建纯对象副本，避免传递reactive代理对象
+    const courseData = {
+      class_id: courseForm.classId,
+      subject: courseForm.subject,
+      teacher_name: courseForm.teacher,
+      classroom: courseForm.location,
+      day_of_week: courseForm.dayOfWeek,
+      period: courseForm.period,
+      notes: courseForm.notes,
+      semester: '上学期',
+      year: new Date().getFullYear()
+    }
+    
     if (editingCourse.value) {
       // 更新课程
-      const result = await window.electronAPI.schedules.update(editingCourse.value.id, courseForm)
+      const result = await window.electronAPI.schedules.update(editingCourse.value.id, courseData)
       if (result.success) {
         ElMessage.success('课程更新成功')
         loadSchedules()
       } else {
-        ElMessage.error('课程更新失败')
+        ElMessage.error(`课程更新失败: ${result.error || '未知错误'}`)
+        console.error('课程更新失败详情:', result)
       }
     } else {
       // 添加课程
-      const result = await window.electronAPI.schedules.create(courseForm)
+      const result = await window.electronAPI.schedules.create(courseData)
       if (result.success) {
         ElMessage.success('课程添加成功')
         loadSchedules()
       } else {
-        ElMessage.error('课程添加失败')
+        ElMessage.error(`课程添加失败: ${result.error || '未知错误'}`)
+        console.error('课程添加失败详情:', result)
       }
     }
     
@@ -340,7 +328,6 @@ const resetForm = () => {
     location: '',
     dayOfWeek: 1,
     period: 1,
-    weeks: [],
     notes: ''
   })
   editingCourse.value = null
@@ -348,9 +335,15 @@ const resetForm = () => {
 
 const loadSchedules = async () => {
   try {
-    const result = await window.electronAPI.schedules.list({ classId: 1 })
+    const result = await window.electronAPI.schedules.list({ class_id: 1 })
     if (result.success) {
-      schedules.value = result.data
+      // 转换数据库字段名为前端期望的字段名
+      schedules.value = result.data.map((schedule: any) => ({
+        ...schedule,
+        dayOfWeek: schedule.day_of_week,
+        teacher: schedule.teacher_name,
+        location: schedule.classroom
+      }))
     }
   } catch (error) {
     console.error('加载课程表失败:', error)
@@ -366,6 +359,8 @@ const exportSchedule = () => {
 }
 
 onMounted(() => {
+  // 加载设置
+  settingsStore.loadSettings()
   loadSchedules()
 })
 </script>
@@ -471,30 +466,37 @@ onMounted(() => {
 }
 
 .course-slot.has-course {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   color: white;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
 }
 
 .course-slot.has-course:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
 }
 
 .course-info {
   text-align: center;
-  padding: 4px;
+  padding: 6px;
 }
 
 .course-name {
-  font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 2px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 3px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.5px;
 }
 
 .course-teacher,
 .course-location {
   font-size: 12px;
-  opacity: 0.9;
+  opacity: 0.95;
+  font-weight: 500;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
 }
 
 .empty-slot {

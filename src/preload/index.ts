@@ -191,8 +191,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (data: any) => ipcRenderer.invoke('templates:create', data),
     update: (id: number, data: any) => ipcRenderer.invoke('templates:update', id, data),
     delete: (id: number) => ipcRenderer.invoke('templates:delete', id),
-    generate: (templateId: number, data: any) => ipcRenderer.invoke('templates:generate', templateId, data),
-    preview: (templateId: number, data: any) => ipcRenderer.invoke('templates:preview', templateId, data)
+    generate: (options: any) => ipcRenderer.invoke('templates:generate', options),
+    preview: (templateId: number, data: any) => ipcRenderer.invoke('templates:preview', templateId, data),
+    print: (content: string, options?: any) => ipcRenderer.invoke('templates:print', content, options),
+    import: (data: any) => ipcRenderer.invoke('templates:import', data),
+    export: (options: any) => ipcRenderer.invoke('templates:export', options),
+    getGeneratedDocs: () => ipcRenderer.invoke('templates:getGeneratedDocs'),
+    deleteGeneratedDoc: (id: number) => ipcRenderer.invoke('templates:deleteGeneratedDoc', id)
   }
 })
 

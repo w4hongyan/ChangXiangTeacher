@@ -35,6 +35,7 @@ export function setupTemplateHandlers(db: DatabaseManager) {
   // 获取文档模板列表
   const handleGetTemplates = async (_: IpcMainInvokeEvent, params: TemplateQueryParams = {}) => {
     try {
+      console.log('获取模板列表请求参数:', params)
       const {
         category,
         keyword,
@@ -72,7 +73,11 @@ export function setupTemplateHandlers(db: DatabaseManager) {
         ORDER BY is_system DESC, created_at DESC
       `
 
+      console.log('执行查询:', query, '参数:', paramsArray)
       const templates = await db.all(query, paramsArray)
+      console.log('数据库查询结果:', templates.length, '条记录')
+      console.log('查询到的模板详情:', templates.map(t => ({ id: t.id, name: t.name, category: t.category, is_active: t.is_active, is_system: t.is_system })))
+      
       // 映射字段名称以匹配前端期望
       const mappedTemplates = templates.map(template => {
         let content = ''
@@ -85,17 +90,29 @@ export function setupTemplateHandlers(db: DatabaseManager) {
           content = template.template_content || ''
         }
         
+        let variables = []
+        try {
+          const templateContent = JSON.parse(template.template_content || '{}')
+          variables = templateContent.fields || []
+        } catch (error) {
+          variables = []
+        }
+        
         return {
           id: template.id,
           name: template.name,
           description: template.description,
           category: template.category,
           content: content,
+          variables: variables,
           isSystem: Boolean(template.is_system),
           createdAt: template.created_at,
           updatedAt: template.updated_at
         }
       })
+      
+      console.log('映射后的模板数据:', mappedTemplates.length, '条记录')
+      console.log('模板详情:', mappedTemplates.map(t => ({ id: t.id, name: t.name, category: t.category })))
       return { success: true, data: mappedTemplates }
     } catch (error) {
       console.error('获取文档模板失败:', error)

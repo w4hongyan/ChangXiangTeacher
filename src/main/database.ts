@@ -11,8 +11,11 @@ export class DatabaseManager {
     // 将数据库移动到软件目录中，方便移动复制
     // 使用应用程序安装目录下的data文件夹存储数据库
     const appPath = app.getAppPath()
-    const dataDir = path.join(path.dirname(appPath), 'data')
+    const dataDir = path.join(appPath, 'data')
     this.dbPath = path.join(dataDir, 'database.db')
+    console.log('应用程序使用的数据库路径:', this.dbPath)
+    console.log('appPath:', appPath)
+    console.log('dataDir:', dataDir)
     
     this.db = knex({
       client: 'sqlite3',
@@ -262,8 +265,8 @@ export class DatabaseManager {
           table.boolean('is_active').defaultTo(true)
           table.timestamps(true, true)
           
-          // 确保同一班级、同一时间段只能有一门课
-          table.unique(['class_id', 'day_of_week', 'period', 'semester', 'year'])
+          // 确保同一班级、同一时间段只能有一门活跃课程
+          table.unique(['class_id', 'day_of_week', 'period', 'semester', 'year', 'is_active'])
         })
       }
     })
@@ -352,6 +355,11 @@ export class DatabaseManager {
     const result = await this.db.raw(sql, params)
     // Knex raw 直接返回结果数组
     return Array.isArray(result) ? result : []
+  }
+
+  async selectFirst(table: string, where: Record<string, any>): Promise<any> {
+    const result = await this.db(table).where(where).first()
+    return result || null
   }
 
   async close(): Promise<void> {

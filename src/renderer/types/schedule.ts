@@ -2,11 +2,10 @@ export interface Schedule {
   id?: number
   classId: number
   subject: string
-  teacher: string
-  location: string
-  dayOfWeek: number // 1-7 (周一到周日)
-  period: number // 节次
-  weeks: number[] // 周次数组
+  teacher?: string
+  location?: string
+  dayOfWeek?: number // 1-7 (周一到周日)
+  period?: number // 节次
   notes?: string
   createdAt?: string
   updatedAt?: string

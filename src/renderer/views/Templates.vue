@@ -248,6 +248,7 @@ interface DocumentTemplate {
 }
 
 const templates = ref<DocumentTemplate[]>([])
+const selectedTemplate = ref<DocumentTemplate | null>(null)
 const showAddDialog = ref(false)
 const showPreviewDialog = ref(false)
 const showGenerateDialog = ref(false)

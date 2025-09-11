@@ -114,19 +114,26 @@ export function setupScheduleHandlers(db: DatabaseManager) {
   // 创建课程
   const handleCreateSchedule = async (_: IpcMainInvokeEvent, scheduleData: Schedule) => {
     try {
-      // 检查时间冲突
-      const conflictQuery = `
-        SELECT id FROM schedules 
+      // 先删除可能存在的软删除记录，避免唯一约束冲突
+      await db.run(`
+        DELETE FROM schedules 
         WHERE class_id = ? AND day_of_week = ? AND period = ? 
-        AND semester = ? AND year = ? AND is_active = 1
-      `
-      const conflict = await db.get(conflictQuery, [
+        AND semester = ? AND year = ? AND is_active = 0
+      `, [
         scheduleData.class_id,
         scheduleData.day_of_week,
         scheduleData.period,
         scheduleData.semester,
         scheduleData.year
       ])
+
+      // 检查时间冲突
+      const conflict = await db.selectFirst('schedules', {
+        class_id: scheduleData.class_id,
+        day_of_week: scheduleData.day_of_week,
+        period: scheduleData.period,
+        is_active: 1
+      })
 
       if (conflict) {
         return { success: false, error: '该时间段已有课程安排' }
@@ -135,8 +142,8 @@ export function setupScheduleHandlers(db: DatabaseManager) {
       const result = await db.run(`
         INSERT INTO schedules (
           class_id, subject, teacher_name, day_of_week, period,
-          classroom, semester, year, start_time, end_time, notes, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          classroom, notes, semester, year, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         scheduleData.class_id,
         scheduleData.subject,
@@ -144,11 +151,9 @@ export function setupScheduleHandlers(db: DatabaseManager) {
         scheduleData.day_of_week,
         scheduleData.period,
         scheduleData.classroom || null,
-        scheduleData.semester,
-        scheduleData.year,
-        scheduleData.start_time || null,
-        scheduleData.end_time || null,
         scheduleData.notes || null,
+        scheduleData.semester || '上学期',
+        scheduleData.year || new Date().getFullYear(),
         true
       ])
 
@@ -166,14 +171,12 @@ export function setupScheduleHandlers(db: DatabaseManager) {
       const conflictQuery = `
         SELECT id FROM schedules 
         WHERE class_id = ? AND day_of_week = ? AND period = ? 
-        AND semester = ? AND year = ? AND is_active = 1 AND id != ?
+        AND is_active = 1 AND id != ?
       `
       const conflict = await db.get(conflictQuery, [
         scheduleData.class_id,
         scheduleData.day_of_week,
         scheduleData.period,
-        scheduleData.semester,
-        scheduleData.year,
         id
       ])
 
@@ -181,23 +184,19 @@ export function setupScheduleHandlers(db: DatabaseManager) {
         return { success: false, error: '该时间段已有课程安排' }
       }
 
-      await db.run(`
+      const updateQuery = `
         UPDATE schedules SET 
-          class_id = ?, subject = ?, teacher_name = ?, day_of_week = ?,
-          period = ?, classroom = ?, semester = ?, year = ?,
-          start_time = ?, end_time = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `, [
-        scheduleData.class_id,
+          subject = ?, teacher_name = ?, classroom = ?, day_of_week = ?, 
+          period = ?, notes = ?, updated_at = datetime('now')
+        WHERE id = ? AND is_active = 1
+      `
+      
+      await db.run(updateQuery, [
         scheduleData.subject,
         scheduleData.teacher_name || null,
+        scheduleData.classroom || null,
         scheduleData.day_of_week,
         scheduleData.period,
-        scheduleData.classroom || null,
-        scheduleData.semester,
-        scheduleData.year,
-        scheduleData.start_time || null,
-        scheduleData.end_time || null,
         scheduleData.notes || null,
         id
       ])
@@ -213,7 +212,7 @@ export function setupScheduleHandlers(db: DatabaseManager) {
   const handleDeleteSchedule = async (_: IpcMainInvokeEvent, id: number) => {
     try {
       await db.run(`
-        UPDATE schedules SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+        DELETE FROM schedules WHERE id = ?
       `, [id])
       
       return { success: true }

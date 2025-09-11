@@ -101,7 +101,7 @@ export const useTemplateStore = defineStore('template', {
     async loadTemplates(params?: TemplateQueryParams) {
       this.loading = true
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:getAll', params)
+        const result = await window.electronAPI.templates.list(params)
         if (result.success) {
           this.templates = result.data
         }
@@ -117,7 +117,7 @@ export const useTemplateStore = defineStore('template', {
     // 创建模板
     async createTemplate(template: Omit<DocumentTemplate, 'id'>) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:create', template)
+        const result = await window.electronAPI.templates.create(template)
         if (result.success) {
           await this.loadTemplates()
         }
@@ -131,7 +131,7 @@ export const useTemplateStore = defineStore('template', {
     // 更新模板
     async updateTemplate(id: number, template: Partial<DocumentTemplate>) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:update', id, template)
+        const result = await window.electronAPI.templates.update(id, template)
         if (result.success) {
           await this.loadTemplates()
         }
@@ -145,7 +145,7 @@ export const useTemplateStore = defineStore('template', {
     // 删除模板
     async deleteTemplate(id: number) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:delete', id)
+        const result = await window.electronAPI.templates.delete(id)
         if (result.success) {
           await this.loadTemplates()
         }
@@ -159,7 +159,7 @@ export const useTemplateStore = defineStore('template', {
     // 生成文档
     async generateDocument(options: DocumentGenerateOptions) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:generate', options)
+        const result = await window.electronAPI.templates.generate(options)
         if (result.success) {
           await this.loadGeneratedDocuments()
         }
@@ -173,7 +173,7 @@ export const useTemplateStore = defineStore('template', {
     // 预览模板
     async previewTemplate(templateId: number, variables: Record<string, string>) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:preview', templateId, variables)
+        const result = await window.electronAPI.templates.preview(templateId, variables)
         if (result.success) {
           this.previewContent = result.data.html
           this.previewVariables = variables
@@ -188,7 +188,7 @@ export const useTemplateStore = defineStore('template', {
     // 打印文档
     async printDocument(content: string, options?: any) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:print', content, options)
+        const result = await window.electronAPI.templates.print(content, options)
         return result
       } catch (error) {
         console.error('打印文档失败:', error)
@@ -199,7 +199,7 @@ export const useTemplateStore = defineStore('template', {
     // 导入模板
     async importTemplates(data: any) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:import', data)
+        const result = await window.electronAPI.templates.import(data)
         if (result.success) {
           await this.loadTemplates()
         }
@@ -213,7 +213,7 @@ export const useTemplateStore = defineStore('template', {
     // 导出模板
     async exportTemplates(options: any) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:export', options)
+        const result = await window.electronAPI.templates.export(options)
         return result
       } catch (error) {
         console.error('导出模板失败:', error)
@@ -224,7 +224,7 @@ export const useTemplateStore = defineStore('template', {
     // 加载生成的文档
     async loadGeneratedDocuments() {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:getGeneratedDocs')
+        const result = await window.electronAPI.templates.getGeneratedDocs()
         if (result.success) {
           this.generatedDocuments = result.data
         }
@@ -238,7 +238,7 @@ export const useTemplateStore = defineStore('template', {
     // 删除生成的文档
     async deleteGeneratedDocument(id: number) {
       try {
-        const result = await window.electron.ipcRenderer.invoke('templates:deleteGeneratedDoc', id)
+        const result = await window.electronAPI.templates.deleteGeneratedDoc(id)
         if (result.success) {
           await this.loadGeneratedDocuments()
         }
