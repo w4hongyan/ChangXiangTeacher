@@ -402,6 +402,13 @@
           @cancel="showEditor = false"
         />
       </el-drawer>
+
+      <!-- 模板使用对话框 -->
+      <TemplateUseDialog
+        v-model="showUseDialog"
+        :template="usingTemplate"
+        @document-generated="handleDocumentGenerated"
+      />
     </div>
   </Layout>
 </template>
@@ -415,6 +422,7 @@ import {
 } from '@element-plus/icons-vue'
 import Layout from './Layout.vue'
 import TemplateEditor from '../components/TemplateEditor.vue'
+import TemplateUseDialog from '../components/TemplateUseDialog.vue'
 import { useTemplateStore } from '../stores/template'
 
 // 状态管理
@@ -430,9 +438,11 @@ const sortBy = ref('recent')
 const showPreviewDialog = ref(false)
 const showQuickStart = ref(false)
 const showEditor = ref(false)
+const showUseDialog = ref(false)
 const quickStartStep = ref(0)
 const previewTemplate = ref(null)
 const editingTemplate = ref(null)
+const usingTemplate = ref(null)
 
 // 导航标签
 const navigationTabs = [
@@ -521,8 +531,8 @@ const showPreviewTemplate = (template: any) => {
 }
 
 const useTemplate = (template: any) => {
-  // 使用模板生成文档
-  ElMessage.success(`开始使用模板：${template.name}`)
+  usingTemplate.value = template
+  showUseDialog.value = true
 }
 
 const toggleFavorite = (template: any) => {
@@ -628,6 +638,21 @@ const handleTemplateSave = (template: any) => {
   // 保存模板
   ElMessage.success('模板保存成功')
   showEditor.value = false
+}
+
+// 处理文档生成
+const handleDocumentGenerated = (documentData: any) => {
+  // 添加到生成记录
+  generationHistory.value.unshift({
+    id: Date.now(),
+    ...documentData,
+    status: 'completed'
+  })
+  
+  // 更新导航标签计数
+  navigationTabs[3].count = generationHistory.value.length
+  
+  ElMessage.success('文档已生成并保存到生成记录中')
 }
 
 // 数据加载函数
