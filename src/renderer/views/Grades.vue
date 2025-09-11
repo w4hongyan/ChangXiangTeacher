@@ -208,12 +208,50 @@
       />
 
       <!-- 统计分析对话框 -->
-      <el-dialog v-model="showStatsDialog" title="成绩统计分析" width="90%" top="5vh">
-        <GradeCharts
-          :statsData="gradeStats"
-          :classes="classes"
-          :subjects="subjects"
-        />
+      <el-dialog v-model="showStatsDialog" title="成绩统计分析" width="95%" top="3vh">
+        <el-tabs v-model="activeStatsTab" type="card">
+          <el-tab-pane label="图表分析" name="charts">
+            <GradeCharts
+              :statsData="gradeStats"
+              :classes="classes"
+              :subjects="subjects"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="趋势分析" name="trend">
+            <GradeTrendAnalysis
+              :classes="classes"
+              :students="students"
+              :subjects="subjects"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="深度分析" name="deep">
+            <GradeDeepAnalysis
+              :classes="classes"
+              :students="students"
+              :subjects="subjects"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="对比分析" name="comparison">
+            <GradeComparisonAnalysis
+              :classes="classes"
+              :students="students"
+              :subjects="subjects"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="预测分析" name="prediction">
+            <GradePredictionAnalysis
+              :classes="classes"
+              :students="students"
+              :subjects="subjects"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="报告生成" name="report">
+            <GradeReportGenerator
+              :classes="classes"
+              :subjects="subjects"
+            />
+          </el-tab-pane>
+        </el-tabs>
       </el-dialog>
       
       <!-- 成绩导入对话框 -->
@@ -262,6 +300,11 @@ import { Plus, Download, DataAnalysis, Delete, Edit, Upload, ArrowDown, Document
 import Layout from './Layout.vue'
 import GradeForm from '../components/GradeForm.vue'
 import GradeCharts from '../components/GradeCharts.vue'
+import GradeTrendAnalysis from '../components/GradeTrendAnalysis.vue'
+import GradeDeepAnalysis from '../components/GradeDeepAnalysis.vue'
+import GradeComparisonAnalysis from '../components/GradeComparisonAnalysis.vue'
+import GradePredictionAnalysis from '../components/GradePredictionAnalysis.vue'
+import GradeReportGenerator from '../components/GradeReportGenerator.vue'
 import { useGradeStore } from '../stores/grade'
 import { useStudentStore } from '../stores/student'
 import { useClassStore } from '../stores/class'
@@ -276,6 +319,7 @@ const loading = ref(false)
 const formVisible = ref(false)
 const showStatsDialog = ref(false)
 const importVisible = ref(false)
+const activeStatsTab = ref('charts')
 const currentGrade = ref<GradeFormData & { id?: number }>()
 const selectedGrades = ref<number[]>([])
 const fileList = ref<any[]>([])

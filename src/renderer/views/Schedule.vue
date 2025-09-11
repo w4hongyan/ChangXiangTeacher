@@ -19,6 +19,11 @@
       </div>
     </div>
 
+    <!-- 课程提醒面板 -->
+    <div class="reminder-panel">
+      <ClassReminder />
+    </div>
+
     <!-- 课程表视图 -->
     <div class="schedule-view">
       <el-card>
@@ -169,6 +174,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Upload, Download } from '@element-plus/icons-vue'
 import Layout from './Layout.vue'
+import ClassReminder from '../components/schedule/ClassReminder.vue'
 import type { Schedule } from '../types/schedule'
 import { useSettingsStore } from '../stores/settings'
 
@@ -350,12 +356,33 @@ const loadSchedules = async () => {
   }
 }
 
-const importSchedule = () => {
-  ElMessage.info('导入功能开发中...')
+const importSchedule = async () => {
+  try {
+    const result = await window.electronAPI.schedules.import()
+    if (result.success) {
+      ElMessage.success(result.message || '导入成功')
+      loadSchedules()
+    } else {
+      ElMessage.error(result.error || '导入失败')
+    }
+  } catch (error) {
+    console.error('导入课程表失败:', error)
+    ElMessage.error('导入课程表失败')
+  }
 }
 
-const exportSchedule = () => {
-  ElMessage.info('导出功能开发中...')
+const exportSchedule = async () => {
+  try {
+    const result = await window.electronAPI.schedules.export({ class_id: 1 })
+    if (result.success) {
+      ElMessage.success(result.message || '导出成功')
+    } else {
+      ElMessage.error(result.error || '导出失败')
+    }
+  } catch (error) {
+    console.error('导出课程表失败:', error)
+    ElMessage.error('导出课程表失败')
+  }
 }
 
 onMounted(() => {
@@ -368,6 +395,10 @@ onMounted(() => {
 <style scoped>
 .schedule-container {
   padding: 20px;
+}
+
+.reminder-panel {
+  margin-bottom: 20px;
 }
 
 .page-header {

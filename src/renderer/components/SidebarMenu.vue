@@ -46,6 +46,26 @@
         <template #title>积分管理</template>
       </el-menu-item>
 
+      <el-menu-item index="/shop">
+        <el-icon><ShoppingBag /></el-icon>
+        <template #title>积分商城</template>
+      </el-menu-item>
+
+      <el-menu-item index="/attendance">
+        <el-icon><UserFilled /></el-icon>
+        <template #title>班级点名</template>
+      </el-menu-item>
+
+      <el-menu-item index="/backup">
+        <el-icon><FolderOpened /></el-icon>
+        <template #title>数据备份</template>
+      </el-menu-item>
+
+      <el-menu-item index="/cloud">
+        <el-icon><Upload /></el-icon>
+        <template #title>云存储管理</template>
+      </el-menu-item>
+
       <el-menu-item index="/schedule">
         <el-icon><Calendar /></el-icon>
         <template #title>课程表管理</template>
@@ -90,12 +110,16 @@ import {
   Grid,
   TrendCharts,
   Trophy,
+  ShoppingBag,
   Calendar,
   Clock,
   Document,
   Setting,
   DArrowLeft,
-  DArrowRight
+  DArrowRight,
+  UserFilled,
+  FolderOpened,
+  Upload
 } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../stores/settings'
 

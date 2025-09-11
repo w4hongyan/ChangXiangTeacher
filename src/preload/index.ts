@@ -96,6 +96,43 @@ declare global {
         generate: (templateId: number, data: any) => Promise<any>
         preview: (templateId: number, data: any) => Promise<any>
       }
+      shop: {
+        getItems: (params?: any) => Promise<any>
+        getItemById: (id: number) => Promise<any>
+        createItem: (data: any) => Promise<any>
+        updateItem: (id: number, data: any) => Promise<any>
+        deleteItem: (id: number) => Promise<any>
+        exchange: (data: any) => Promise<any>
+        getExchangeHistory: (params?: any) => Promise<any>
+        getStats: (params?: any) => Promise<any>
+      }
+      attendance: {
+        save: (data: any) => Promise<any>
+        history: (params?: any) => Promise<any>
+        stats: (params?: any) => Promise<any>
+        today: (classId: number) => Promise<any>
+        export: (params?: any) => Promise<any>
+      }
+      backup: {
+         list: (options?: any) => Promise<any>
+         stats: () => Promise<any>
+         create: (options?: any) => Promise<any>
+         restore: (options: any) => Promise<any>
+         download: (id: number) => Promise<any>
+         delete: (id: number) => Promise<any>
+         getSettings: () => Promise<any>
+         saveSettings: (settings: any) => Promise<any>
+         selectPath: () => Promise<any>
+       }
+       cloud: {
+         getProviders: () => Promise<any>
+         connect: (providerId: string, credentials: any) => Promise<any>
+         disconnect: (providerId: string) => Promise<any>
+         sync: (providerId: string, filePath: string) => Promise<any>
+         download: (providerId: string, remotePath: string, localPath: string) => Promise<any>
+         listFiles: (providerId: string, remotePath?: string) => Promise<any>
+         getSyncStatus: (providerId: string) => Promise<any>
+       }
     }
   }
 }
@@ -198,7 +235,44 @@ contextBridge.exposeInMainWorld('electronAPI', {
     export: (options: any) => ipcRenderer.invoke('templates:export', options),
     getGeneratedDocs: () => ipcRenderer.invoke('templates:getGeneratedDocs'),
     deleteGeneratedDoc: (id: number) => ipcRenderer.invoke('templates:deleteGeneratedDoc', id)
-  }
+  },
+  shop: {
+    getItems: (params?: any) => ipcRenderer.invoke('shop:getItems', params),
+    getItemById: (id: number) => ipcRenderer.invoke('shop:getItemById', id),
+    createItem: (data: any) => ipcRenderer.invoke('shop:createItem', data),
+    updateItem: (id: number, data: any) => ipcRenderer.invoke('shop:updateItem', id, data),
+    deleteItem: (id: number) => ipcRenderer.invoke('shop:deleteItem', id),
+    exchange: (data: any) => ipcRenderer.invoke('shop:exchange', data),
+    getExchangeHistory: (params?: any) => ipcRenderer.invoke('shop:getExchangeHistory', params),
+    getStats: (params?: any) => ipcRenderer.invoke('shop:getStats', params)
+  },
+  attendance: {
+    save: (data: any) => ipcRenderer.invoke('attendance:save', data),
+    history: (params?: any) => ipcRenderer.invoke('attendance:history', params),
+    stats: (params?: any) => ipcRenderer.invoke('attendance:stats', params),
+    today: (classId: number) => ipcRenderer.invoke('attendance:today', classId),
+    export: (params?: any) => ipcRenderer.invoke('attendance:export', params)
+  },
+  backup: {
+     list: (options?: any) => ipcRenderer.invoke('backup:list', options),
+     stats: () => ipcRenderer.invoke('backup:stats'),
+     create: (options?: any) => ipcRenderer.invoke('backup:create', options),
+     restore: (options: any) => ipcRenderer.invoke('backup:restore', options),
+     download: (id: number) => ipcRenderer.invoke('backup:download', id),
+     delete: (id: number) => ipcRenderer.invoke('backup:delete', id),
+     getSettings: () => ipcRenderer.invoke('backup:getSettings'),
+     saveSettings: (settings: any) => ipcRenderer.invoke('backup:saveSettings', settings),
+     selectPath: () => ipcRenderer.invoke('backup:selectPath')
+   },
+   cloud: {
+     getProviders: () => ipcRenderer.invoke('cloud:getProviders'),
+     connect: (providerId: string, credentials: any) => ipcRenderer.invoke('cloud:connect', providerId, credentials),
+     disconnect: (providerId: string) => ipcRenderer.invoke('cloud:disconnect', providerId),
+     sync: (providerId: string, filePath: string) => ipcRenderer.invoke('cloud:sync', providerId, filePath),
+     download: (providerId: string, remotePath: string, localPath: string) => ipcRenderer.invoke('cloud:download', providerId, remotePath, localPath),
+     listFiles: (providerId: string, remotePath?: string) => ipcRenderer.invoke('cloud:listFiles', providerId, remotePath),
+     getSyncStatus: (providerId: string) => ipcRenderer.invoke('cloud:getSyncStatus', providerId)
+   }
 })
 
 // 开发工具警告移除

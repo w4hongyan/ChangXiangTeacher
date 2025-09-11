@@ -51,6 +51,32 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/shop',
+    name: 'Shop',
+    component: () => import('../views/Shop.vue'),
+    meta: {
+      title: '积分商城'
+    }
+  },
+  {
+    path: '/attendance',
+    name: 'Attendance',
+    component: () => import('../views/Attendance.vue'),
+    meta: { title: '班级点名' }
+  },
+  {
+      path: '/backup',
+      name: 'Backup',
+      component: () => import('../views/Backup.vue'),
+      meta: { title: '数据备份' }
+    },
+    {
+      path: '/cloud',
+      name: 'Cloud',
+      component: () => import('../views/Cloud.vue'),
+      meta: { title: '云存储管理' }
+    },
+  {
     path: '/schedule',
     name: 'Schedule',
     component: () => import('../views/Schedule.vue'),

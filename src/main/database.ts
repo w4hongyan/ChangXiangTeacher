@@ -2,6 +2,7 @@ import { app } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import knex from 'knex'
+import sqlite3 from 'sqlite3'
 
 export class DatabaseManager {
   private db: knex.Knex
@@ -294,6 +295,62 @@ export class DatabaseManager {
       }
     })
 
+    // 积分商城商品表
+    await this.db.schema.hasTable('shop_items').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('shop_items', (table) => {
+          table.increments('id').primary()
+          table.string('name').notNullable() // 商品名称
+          table.text('description') // 商品描述
+          table.integer('price').notNullable() // 积分价格
+          table.string('category').notNullable() // 商品分类
+          table.string('image_url') // 商品图片
+          table.integer('stock').defaultTo(-1) // 库存数量，-1表示无限
+          table.integer('sold_count').defaultTo(0) // 已售数量
+          table.boolean('is_active').defaultTo(true) // 是否上架
+          table.integer('sort_order').defaultTo(0) // 排序
+          table.json('attributes') // 商品属性（JSON格式）
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 积分商城兑换记录表
+    await this.db.schema.hasTable('shop_exchanges').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('shop_exchanges', (table) => {
+          table.increments('id').primary()
+          table.integer('student_id').unsigned().references('id').inTable('students')
+          table.integer('item_id').unsigned().references('id').inTable('shop_items')
+          table.integer('class_id').unsigned().references('id').inTable('classes')
+          table.integer('quantity').defaultTo(1) // 兑换数量
+          table.integer('points_cost').notNullable() // 消耗积分
+          table.string('status').defaultTo('pending') // 状态：pending, approved, rejected, completed
+          table.text('notes') // 备注
+          table.integer('approved_by').nullable() // 审批人ID
+          table.timestamp('approved_at').nullable() // 审批时间
+          table.timestamp('completed_at').nullable() // 完成时间
+          table.timestamps(true, true)
+        })
+      }
+    })
+
+    // 积分商城分类表
+    await this.db.schema.hasTable('shop_categories').then((exists) => {
+      if (!exists) {
+        return this.db.schema.createTable('shop_categories', (table) => {
+          table.increments('id').primary()
+          table.string('name').notNullable() // 分类名称
+          table.text('description') // 分类描述
+          table.string('icon') // 分类图标
+          table.string('color').defaultTo('#409EFF') // 分类颜色
+          table.integer('sort_order').defaultTo(0) // 排序
+          table.boolean('is_active').defaultTo(true) // 是否启用
+          table.timestamps(true, true)
+        })
+      }
+    })
+
     // 文档模板表
     await this.db.schema.hasTable('document_templates').then((exists) => {
       if (!exists) {
@@ -365,4 +422,21 @@ export class DatabaseManager {
   async close(): Promise<void> {
     await this.db.destroy()
   }
+}
+
+// 导出数据库实例
+let dbInstance: DatabaseManager | null = null
+
+export const getDatabase = () => {
+  if (!dbInstance) {
+    dbInstance = new DatabaseManager()
+  }
+  return dbInstance.db
+}
+
+export const getDatabaseManager = (): DatabaseManager => {
+  if (!dbInstance) {
+    dbInstance = new DatabaseManager()
+  }
+  return dbInstance
 }

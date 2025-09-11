@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
-import { DatabaseManager } from './database'
+import { DatabaseManager, getDatabaseManager } from './database'
 import { setupStudentHandlers } from './handlers/student'
 import { setupGradeHandlers } from './handlers/grades'
 import { setupSeatingHandlers } from './handlers/seating'
@@ -9,9 +9,13 @@ import { setupPointHandlers } from './handlers/point'
 import { setupScheduleHandlers } from './handlers/schedule'
 import { setupCalendarHandlers } from './handlers/calendar'
 import { setupTemplateHandlers } from './handlers/template'
+import { setupShopHandlers } from './handlers/shop'
+import { registerAttendanceHandlers, initAttendanceTables } from './handlers/attendance'
+import { registerBackupHandlers, initBackupTables, startAutoBackupScheduler } from './handlers/backup'
+import { registerCloudHandlers, initCloudTables, startCloudSyncScheduler } from './handlers/cloud'
 
 let mainWindow: BrowserWindow
-const dbManager = new DatabaseManager()
+const dbManager = getDatabaseManager()
 
 // IPC handlers for class management
 ipcMain.handle('classes:getAll', async () => {
@@ -145,14 +149,14 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // 设置应用ID
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.changxiang.teacher')
   }
 
   // 初始化数据库
-  dbManager.initialize()
+  await dbManager.initialize()
 
   // 设置学生管理handlers
   setupStudentHandlers(dbManager)
@@ -177,6 +181,33 @@ app.whenReady().then(() => {
   
   // 设置文档模板handlers
   setupTemplateHandlers(dbManager)
+  
+  // 设置积分商城handlers
+  setupShopHandlers(dbManager)
+  
+  // 初始化考勤数据表
+  await initAttendanceTables()
+  
+  // 初始化备份数据表
+  await initBackupTables()
+  
+  // 初始化云存储数据表
+  await initCloudTables()
+  
+  // 设置考勤管理handlers
+  registerAttendanceHandlers()
+  
+  // 设置备份管理handlers
+  registerBackupHandlers()
+  
+  // 设置云存储管理handlers
+  registerCloudHandlers()
+  
+  // 启动自动备份调度器
+  startAutoBackupScheduler()
+  
+  // 启动云同步调度器
+  startCloudSyncScheduler()
 
   createWindow()
 

@@ -130,29 +130,19 @@
           />
         </el-form-item>
         <el-form-item label="模板内容" prop="content">
-          <div class="template-editor">
-            <div class="editor-toolbar">
-              <el-button-group>
-                <el-button size="small" @click="insertVariable('{{学生姓名}}')">学生姓名</el-button>
-                <el-button size="small" @click="insertVariable('{{班级名称}}')">班级名称</el-button>
-                <el-button size="small" @click="insertVariable('{{日期}}')">日期</el-button>
-                <el-button size="small" @click="insertVariable('{{教师姓名}}')">教师姓名</el-button>
-              </el-button-group>
-              <el-divider direction="vertical" />
-              <el-button-group>
-                <el-button size="small" @click="formatText('bold')">粗体</el-button>
-                <el-button size="small" @click="formatText('italic')">斜体</el-button>
-                <el-button size="small" @click="formatText('underline')">下划线</el-button>
-              </el-button-group>
-            </div>
-            <el-input
-              v-model="templateForm.content"
-              type="textarea"
-              :rows="12"
-              placeholder="请输入模板内容，可以使用变量如 {{学生姓名}}、{{班级名称}} 等"
-              ref="contentTextarea"
-            />
-          </div>
+          <RichTextEditor
+            v-model="templateForm.content"
+            height="400px"
+            placeholder="请输入模板内容，可以使用变量如 {{学生姓名}}、{{班级名称}} 等"
+            :preview-variables="{
+              学生姓名: '张三',
+              班级名称: '高一(1)班',
+              日期: new Date().toLocaleDateString(),
+              教师姓名: '李老师',
+              科目: '数学',
+              学期: '2024年春季学期'
+            }"
+          />
         </el-form-item>
         <el-form-item label="变量说明">
           <div class="variables-help">
@@ -186,18 +176,24 @@
     </el-dialog>
 
     <!-- 生成文档对话框 -->
-    <el-dialog v-model="showGenerateDialog" title="生成文档" width="600px">
+    <el-dialog v-model="showGenerateDialog" title="生成文档" width="800px">
       <div class="generate-form">
-        <h4>请填写文档变量</h4>
-        <el-form :model="generateForm" label-width="100px">
-          <el-form-item
-            v-for="variable in documentVariables"
-            :key="variable"
-            :label="variable"
-          >
-            <el-input v-model="generateForm[variable]" :placeholder="`请输入${variable}`" />
-          </el-form-item>
-        </el-form>
+        <div class="generate-header">
+          <h4>{{ currentTemplate?.name }}</h4>
+          <p class="template-desc">{{ currentTemplate?.description }}</p>
+        </div>
+        
+        <el-divider />
+        
+        <!-- 使用动态表单组件 -->
+        <DynamicForm
+          ref="dynamicFormRef"
+          :variables="parsedVariables"
+          :template-content="currentTemplate?.content"
+          :show-preview="true"
+          :show-actions="false"
+          @change="handleFormDataChange"
+        />
         <el-divider />
         <div class="document-preview">
           <h4>文档预览</h4>
@@ -205,9 +201,35 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="showGenerateDialog = false">取消</el-button>
-        <el-button @click="saveDocument">保存文档</el-button>
-        <el-button type="primary" @click="printDocument">打印文档</el-button>
+        <div class="dialog-footer">
+          <div class="footer-left">
+            <el-button @click="validateAndGenerate" :disabled="!canGenerate">
+              <el-icon><Refresh /></el-icon>
+              重新生成
+            </el-button>
+          </div>
+          <div class="footer-center">
+            <el-select v-model="selectedExportFormat" placeholder="选择导出格式" style="width: 120px">
+              <el-option
+                v-for="format in exportFormats"
+                :key="format.value"
+                :label="format.label"
+                :value="format.value"
+              />
+            </el-select>
+          </div>
+          <div class="footer-right">
+            <el-button @click="showGenerateDialog = false">取消</el-button>
+            <el-button @click="saveDocument" :disabled="!canGenerate">
+              <el-icon><Download /></el-icon>
+              导出{{ getFormatLabel(selectedExportFormat) }}
+            </el-button>
+            <el-button type="primary" @click="printDocument" :disabled="!canGenerate">
+              <el-icon><Printer /></el-icon>
+              打印文档
+            </el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
     </div>
@@ -215,7 +237,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
@@ -223,18 +245,24 @@ import {
   Document,
   DocumentAdd,
   View,
-  More,
   Edit,
-  CopyDocument,
-  Download,
   Delete,
+  Download,
+  CopyDocument,
+  More,
   Files,
   Notebook,
   Trophy,
   Calendar,
-  Setting
+  Setting,
+  Refresh,
+  Printer
 } from '@element-plus/icons-vue'
 import Layout from './Layout.vue'
+import DynamicForm from '../components/DynamicForm.vue'
+import RichTextEditor from '../components/RichTextEditor.vue'
+import { TemplateVariableParser, type TemplateVariable } from '../utils/templateVariableParser'
+import { DocumentExporter, type ExportFormat, type ExportOptions } from '../utils/documentExporter'
 
 interface DocumentTemplate {
   id?: number
@@ -256,7 +284,7 @@ const editingTemplate = ref<DocumentTemplate | null>(null)
 const previewTemplateData = ref<DocumentTemplate | null>(null)
 const selectedCategory = ref('all')
 const templateFormRef = ref()
-const contentTextarea = ref()
+
 
 const templateForm = reactive<DocumentTemplate>({
   name: '',
@@ -266,6 +294,34 @@ const templateForm = reactive<DocumentTemplate>({
 })
 
 const generateForm = reactive<Record<string, string>>({})
+
+// 新增：智能变量解析相关
+const dynamicFormRef = ref()
+const currentTemplate = ref<DocumentTemplate | null>(null)
+const parsedVariables = ref<VariableDefinition[]>([])
+const formData = ref<Record<string, any>>({})
+
+// 导出格式相关
+const selectedExportFormat = ref<ExportFormat>('word')
+const exportFormats = [
+  { label: 'Word文档', value: 'word' as ExportFormat },
+  { label: 'PDF文档', value: 'pdf' as ExportFormat },
+  { label: 'Excel表格', value: 'excel' as ExportFormat },
+  { label: 'HTML网页', value: 'html' as ExportFormat },
+  { label: '纯文本', value: 'txt' as ExportFormat }
+]
+
+// 获取格式标签
+const getFormatLabel = (format: ExportFormat) => {
+  const formatMap = {
+    word: 'Word',
+    pdf: 'PDF',
+    excel: 'Excel',
+    html: 'HTML',
+    txt: '文本'
+  }
+  return formatMap[format] || '文档'
+}
 
 const templateRules = {
   name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
@@ -303,6 +359,15 @@ const documentVariables = computed(() => {
 })
 
 const generatePreview = computed(() => {
+  if (!currentTemplate.value) return ''
+  
+  // 使用新的智能变量解析器生成预览
+  if (Object.keys(formData.value).length > 0) {
+    const content = TemplateVariableParser.replaceVariables(currentTemplate.value.content, formData.value)
+    return formatPreviewContent(content)
+  }
+  
+  // 兼容旧版本
   if (!selectedTemplate.value) return ''
   let content = selectedTemplate.value.content
   
@@ -312,6 +377,18 @@ const generatePreview = computed(() => {
   })
   
   return formatPreviewContent(content)
+})
+
+// 新增：检查是否可以生成文档
+const canGenerate = computed(() => {
+  if (!parsedVariables.value.length) return true
+  
+  // 检查必填字段是否已填写
+  return parsedVariables.value.every(variable => {
+    if (!variable.required) return true
+    const value = formData.value[variable.name]
+    return value !== undefined && value !== null && value !== ''
+  })
 })
 
 const getCategoryLabel = (category: string) => {
@@ -359,61 +436,46 @@ const editTemplate = (template: DocumentTemplate) => {
 
 const generateDocument = (template: DocumentTemplate) => {
   selectedTemplate.value = template
+  currentTemplate.value = template
   
-  // 重置生成表单
+  // 使用智能变量解析器解析模板
+  const parsed = TemplateVariableParser.parseTemplate(template.content)
+  parsedVariables.value = parsed.variables
+  
+  // 重置表单数据
+  formData.value = {}
+  
+  // 重置旧的生成表单（保持兼容性）
   Object.keys(generateForm).forEach(key => {
     delete generateForm[key]
-  })
-  
-  // 初始化变量
-  documentVariables.value.forEach(variable => {
-    generateForm[variable] = ''
   })
   
   showPreviewDialog.value = false
   showGenerateDialog.value = true
 }
 
-const insertVariable = (variable: string) => {
-  const textarea = contentTextarea.value?.textarea
-  if (textarea) {
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const text = templateForm.content
-    templateForm.content = text.substring(0, start) + variable + text.substring(end)
-    
-    // 设置光标位置
-    setTimeout(() => {
-      textarea.selectionStart = textarea.selectionEnd = start + variable.length
-      textarea.focus()
-    }, 0)
-  }
+// 新增：处理动态表单数据变化
+const handleFormDataChange = (data: Record<string, any>) => {
+  formData.value = { ...data }
+  
+  // 同步到旧的generateForm（保持兼容性）
+  Object.keys(generateForm).forEach(key => {
+    delete generateForm[key]
+  })
+  Object.assign(generateForm, data)
 }
 
-const formatText = (format: string) => {
-  const textarea = contentTextarea.value?.textarea
-  if (textarea) {
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const selectedText = templateForm.content.substring(start, end)
-    
-    if (selectedText) {
-      let formattedText = selectedText
-      switch (format) {
-        case 'bold':
-          formattedText = `**${selectedText}**`
-          break
-        case 'italic':
-          formattedText = `*${selectedText}*`
-          break
-        case 'underline':
-          formattedText = `__${selectedText}__`
-          break
-      }
-      
-      const text = templateForm.content
-      templateForm.content = text.substring(0, start) + formattedText + text.substring(end)
+// 新增：验证并重新生成文档
+const validateAndGenerate = async () => {
+  if (!dynamicFormRef.value) return
+  
+  try {
+    const isValid = await dynamicFormRef.value.validate()
+    if (isValid) {
+      ElMessage.success('文档已重新生成')
     }
+  } catch (error) {
+    ElMessage.error('请检查表单填写是否正确')
   }
 }
 
@@ -497,43 +559,70 @@ const deleteTemplate = async (id: number) => {
 const saveDocument = async () => {
   try {
     const documentContent = generatePreview.value
-    const result = await window.electronAPI.templates.generate(template.id, {
-      templateId: selectedTemplate.value?.id,
-      content: documentContent,
-      variables: generateForm
-    })
+    const exportOptions: ExportOptions = {
+       title: currentTemplate.value?.name || '文档',
+       content: documentContent,
+       format: selectedExportFormat.value,
+       filename: `${currentTemplate.value?.name || '文档'}_${new Date().toLocaleDateString()}`
+     }
+    
+    const result = await DocumentExporter.exportDocument(exportOptions)
     
     if (result.success) {
-      ElMessage.success('文档保存成功')
+      ElMessage.success(`${getFormatLabel(selectedExportFormat.value)}文档保存成功`)
       showGenerateDialog.value = false
     } else {
-      ElMessage.error('文档保存失败')
+      ElMessage.error('文档保存失败: ' + result.error)
     }
   } catch (error) {
     console.error('保存文档失败:', error)
+    ElMessage.error('保存文档失败')
   }
 }
 
 const printDocument = async () => {
   try {
     const documentContent = generatePreview.value
-    const result = await window.electronAPI.templates.preview(template.id, {
-      content: documentContent,
-      title: selectedTemplate.value?.name
-    })
+    const exportOptions: ExportOptions = {
+       title: currentTemplate.value?.name || '文档',
+       content: documentContent,
+       format: 'pdf' as ExportFormat,
+       filename: `${currentTemplate.value?.name || '文档'}_${new Date().toLocaleDateString()}`
+     }
+    
+    const result = await DocumentExporter.exportDocument(exportOptions)
     
     if (result.success) {
       ElMessage.success('文档已发送到打印机')
     } else {
-      ElMessage.error('打印失败')
+      ElMessage.error('打印失败: ' + result.error)
     }
   } catch (error) {
     console.error('打印文档失败:', error)
+    ElMessage.error('打印文档失败')
   }
 }
 
-const exportTemplate = (template: DocumentTemplate) => {
-  ElMessage.info('导出功能开发中...')
+const exportTemplate = async (template: DocumentTemplate) => {
+  try {
+    const exportOptions: ExportOptions = {
+       title: template.name,
+       content: template.content,
+       format: 'word' as ExportFormat,
+       filename: `模板_${template.name}_${new Date().toLocaleDateString()}`
+     }
+    
+    const result = await DocumentExporter.exportDocument(exportOptions)
+    
+    if (result.success) {
+      ElMessage.success('模板导出成功')
+    } else {
+      ElMessage.error('模板导出失败: ' + result.error)
+    }
+  } catch (error) {
+    console.error('导出模板失败:', error)
+    ElMessage.error('导出模板失败')
+  }
 }
 
 const importTemplate = () => {
@@ -678,19 +767,7 @@ onMounted(() => {
   margin-top: 10px;
 }
 
-.template-editor {
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-}
 
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: #f5f7fa;
-  border-bottom: 1px solid #e4e7ed;
-  gap: 10px;
-}
 
 .variables-help {
   display: flex;
@@ -751,5 +828,52 @@ onMounted(() => {
   line-height: 1.6;
   font-size: 14px;
   color: #303133;
+}
+
+/* 生成文档对话框样式 */
+.generate-form {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.generate-header h4 {
+  margin: 0 0 8px 0;
+  color: var(--el-text-color-primary);
+  font-size: 18px;
+}
+
+.template-desc {
+  margin: 0;
+  color: var(--el-text-color-regular);
+  font-size: 14px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 20px 0;
+  border-top: 1px solid #ebeef5;
+}
+
+.footer-left,
+.footer-right {
+  display: flex;
+  gap: 10px;
+}
+
+.footer-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-center .el-select {
+  min-width: 120px;
+}
+
+.footer-right {
+  margin-left: auto;
 }
 </style>
