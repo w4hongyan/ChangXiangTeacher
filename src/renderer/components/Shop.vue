@@ -133,7 +133,7 @@ import { useShopStore } from '../stores/shop'
 import ShopItemManagement from './shop/ShopItemManagement.vue'
 import ShopExchangeManagement from './shop/ShopExchangeManagement.vue'
 import StudentShop from './shop/StudentShop.vue'
-import ShopStatistics from './shop/ShopStatistics.vue'
+import ShopStatistics from './shop/ShopStatisticsSimple.vue'
 import ShopItemForm from './shop/ShopItemForm.vue'
 import ShopCategoryManagement from './shop/ShopCategoryManagement.vue'
 import {

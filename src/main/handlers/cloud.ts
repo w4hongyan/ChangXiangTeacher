@@ -29,32 +29,36 @@ export async function initCloudTables() {
   const db = getDatabase()
   
   // 创建云服务提供商表
-  const hasCloudProviders = await db.schema.hasTable('cloud_providers')
+  const hasCloudProviders = await db.tableExists('cloud_providers')
   if (!hasCloudProviders) {
-    await db.schema.createTable('cloud_providers', (table) => {
-      table.string('id').primary()
-      table.string('name').notNullable()
-      table.string('type').notNullable()
-      table.boolean('connected').defaultTo(false)
-      table.text('access_token')
-      table.text('refresh_token')
-      table.timestamp('last_sync')
-      table.text('config')
-    })
+    await db.createTable('cloud_providers', `
+      CREATE TABLE cloud_providers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        connected INTEGER DEFAULT 0,
+        access_token TEXT,
+        refresh_token TEXT,
+        last_sync DATETIME,
+        config TEXT
+      )
+    `)
   }
   
   // 创建云同步记录表
-  const hasCloudSyncRecords = await db.schema.hasTable('cloud_sync_records')
+  const hasCloudSyncRecords = await db.tableExists('cloud_sync_records')
   if (!hasCloudSyncRecords) {
-    await db.schema.createTable('cloud_sync_records', (table) => {
-      table.increments('id').primary()
-      table.string('provider_id').notNullable()
-      table.string('local_path').notNullable()
-      table.string('remote_path').notNullable()
-      table.timestamp('last_sync')
-      table.string('sync_status').defaultTo('pending')
-      table.string('file_hash')
-    })
+    await db.createTable('cloud_sync_records', `
+      CREATE TABLE cloud_sync_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider_id TEXT NOT NULL,
+        local_path TEXT NOT NULL,
+        remote_path TEXT NOT NULL,
+        last_sync DATETIME,
+        sync_status TEXT DEFAULT 'pending',
+        file_hash TEXT
+      )
+    `)
   }
   
   // 插入默认的云服务提供商
@@ -65,14 +69,14 @@ export async function initCloudTables() {
   ]
   
   for (const provider of providers) {
-    await db('cloud_providers')
-      .insert({
-        id: provider.id,
-        name: provider.name,
-        type: provider.type
-      })
-      .onConflict('id')
-      .ignore()
+    try {
+      await db.run(
+        'INSERT OR IGNORE INTO cloud_providers (id, name, type) VALUES (?, ?, ?)',
+        [provider.id, provider.name, provider.type]
+      )
+    } catch (error) {
+      console.error(`插入云服务提供商 ${provider.name} 失败:`, error)
+    }
   }
   
   console.log('云存储数据表初始化完成')
@@ -85,7 +89,7 @@ export function registerCloudHandlers() {
   // 获取云服务提供商列表
   ipcMain.handle('cloud:getProviders', async () => {
     try {
-      const providers = await db('cloud_providers').select('*')
+      const providers = await db.all('SELECT * FROM cloud_providers')
       return providers.map(provider => ({
         ...provider,
         connected: Boolean(provider.connected),
@@ -105,14 +109,10 @@ export function registerCloudHandlers() {
       await simulateCloudConnection(providerId, credentials)
       
       // 更新数据库
-      await db('cloud_providers')
-        .where('id', providerId)
-        .update({
-          connected: true,
-          access_token: credentials.accessToken,
-          refresh_token: credentials.refreshToken,
-          last_sync: db.fn.now()
-        })
+      await db.run(
+        'UPDATE cloud_providers SET connected = ?, access_token = ?, refresh_token = ?, last_sync = ? WHERE id = ?',
+        [1, credentials.accessToken, credentials.refreshToken, new Date().toISOString(), providerId]
+      )
       
       return { success: true }
     } catch (error) {
@@ -124,18 +124,16 @@ export function registerCloudHandlers() {
   // 断开云服务连接
   ipcMain.handle('cloud:disconnect', async (event, providerId) => {
     try {
-      await db('cloud_providers')
-        .where('id', providerId)
-        .update({
-          connected: false,
-          access_token: null,
-          refresh_token: null
-        })
+      await db.run(
+        'UPDATE cloud_providers SET connected = ?, access_token = ?, refresh_token = ? WHERE id = ?',
+        [0, null, null, providerId]
+      )
       
       // 删除相关的同步记录
-      await db('cloud_sync_records')
-        .where('provider_id', providerId)
-        .del()
+      await db.run(
+        'DELETE FROM cloud_sync_records WHERE provider_id = ?',
+        [providerId]
+      )
       
       return { success: true }
     } catch (error) {
@@ -147,9 +145,10 @@ export function registerCloudHandlers() {
   // 同步到云端
   ipcMain.handle('cloud:sync', async (event, providerId, filePath) => {
     try {
-      const provider = await db('cloud_providers')
-        .where('id', providerId)
-        .first() as CloudProvider
+      const provider = await db.get(
+        'SELECT * FROM cloud_providers WHERE id = ?',
+        [providerId]
+      ) as CloudProvider
       if (!provider || !provider.connected) {
         throw new Error('云服务未连接')
       }
@@ -165,10 +164,10 @@ export function registerCloudHandlers() {
       const remotePath = `/ChangXiangTeacher/backups/${fileName}`
       
       // 检查是否已经同步过
-      const existingRecord = await db('cloud_sync_records')
-        .where('provider_id', providerId)
-        .where('local_path', filePath)
-        .first() as CloudSyncRecord
+      const existingRecord = await db.get(
+        'SELECT * FROM cloud_sync_records WHERE provider_id = ? AND local_path = ?',
+        [providerId, filePath]
+      ) as CloudSyncRecord
       
       if (existingRecord && existingRecord.file_hash === fileHash) {
         return { success: true, message: '文件已是最新版本' }
@@ -178,30 +177,24 @@ export function registerCloudHandlers() {
       await simulateCloudUpload(provider, filePath, remotePath)
       
       // 更新或插入同步记录
+      const currentTime = new Date().toISOString()
       if (existingRecord) {
-        await db('cloud_sync_records')
-          .where('id', existingRecord.id)
-          .update({
-            remote_path: remotePath,
-            last_sync: db.fn.now(),
-            sync_status: 'completed',
-            file_hash: fileHash
-          })
+        await db.run(
+          'UPDATE cloud_sync_records SET remote_path = ?, last_sync = ?, sync_status = ?, file_hash = ? WHERE id = ?',
+          [remotePath, currentTime, 'completed', fileHash, existingRecord.id]
+        )
       } else {
-        await db('cloud_sync_records').insert({
-          provider_id: providerId,
-          local_path: filePath,
-          remote_path: remotePath,
-          last_sync: db.fn.now(),
-          sync_status: 'completed',
-          file_hash: fileHash
-        })
+        await db.run(
+          'INSERT INTO cloud_sync_records (provider_id, local_path, remote_path, last_sync, sync_status, file_hash) VALUES (?, ?, ?, ?, ?, ?)',
+          [providerId, filePath, remotePath, currentTime, 'completed', fileHash]
+        )
       }
       
       // 更新提供商的最后同步时间
-      await db('cloud_providers')
-        .where('id', providerId)
-        .update({ last_sync: db.fn.now() })
+      await db.run(
+        'UPDATE cloud_providers SET last_sync = ? WHERE id = ?',
+        [currentTime, providerId]
+      )
       
       return { success: true, remotePath }
     } catch (error) {
@@ -213,7 +206,10 @@ export function registerCloudHandlers() {
   // 从云端下载
   ipcMain.handle('cloud:download', async (event, providerId, remotePath, localPath) => {
     try {
-      const provider = await db('cloud_providers').where('id', providerId).first() as CloudProvider
+      const provider = await db.get(
+        'SELECT * FROM cloud_providers WHERE id = ?',
+        [providerId]
+      ) as CloudProvider
       if (!provider || !provider.connected) {
         throw new Error('云服务未连接')
       }
@@ -231,7 +227,10 @@ export function registerCloudHandlers() {
   // 获取云端文件列表
   ipcMain.handle('cloud:listFiles', async (event, providerId, remotePath = '/') => {
     try {
-      const provider = await db('cloud_providers').where('id', providerId).first() as CloudProvider
+      const provider = await db.get(
+        'SELECT * FROM cloud_providers WHERE id = ?',
+        [providerId]
+      ) as CloudProvider
       if (!provider || !provider.connected) {
         throw new Error('云服务未连接')
       }
@@ -249,10 +248,10 @@ export function registerCloudHandlers() {
   // 获取同步状态
   ipcMain.handle('cloud:getSyncStatus', async (event, providerId) => {
     try {
-      const records = await db('cloud_sync_records')
-        .where('provider_id', providerId)
-        .orderBy('last_sync', 'desc')
-        .select('*')
+      const records = await db.all(
+        'SELECT * FROM cloud_sync_records WHERE provider_id = ? ORDER BY last_sync DESC',
+        [providerId]
+      )
       
       return records
     } catch (error) {

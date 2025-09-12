@@ -49,7 +49,7 @@
         </el-col>
         <el-col :span="4">
           <el-button @click="generateSuggestions">
-            <el-icon><Lightbulb /></el-icon>
+            <el-icon><Star /></el-icon>
             生成建议
           </el-button>
         </el-col>
@@ -272,7 +272,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Bar, Line, Scatter, Radar } from 'vue-chartjs'
-import { DataAnalysis, Document, Lightbulb } from '@element-plus/icons-vue'
+import { DataAnalysis, Document, Star } from '@element-plus/icons-vue'
 import type { Class } from '../types/class'
 import type { Student } from '../types/student'
 import * as XLSX from 'xlsx'

@@ -182,7 +182,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useShopStore } from '../../stores/shop'
 import { Money, ShoppingBag, Box, User, Download } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
+// 使用简化的统计显示，不依赖图表库
 
 const shopStore = useShopStore()
 
@@ -195,10 +195,7 @@ const popularItemsChart = ref<HTMLElement>()
 const categoryPieChart = ref<HTMLElement>()
 
 // 图表实例
-let exchangeTrendChartInstance: echarts.ECharts | null = null
-let pointsTrendChartInstance: echarts.ECharts | null = null
-let popularItemsChartInstance: echarts.ECharts | null = null
-let categoryPieChartInstance: echarts.ECharts | null = null
+// 简化统计显示，移除图表依赖
 
 // 计算属性
 const statistics = computed(() => shopStore.statistics)
@@ -246,61 +243,13 @@ const fetchStatistics = async () => {
   })
 }
 
-// 更新图表
+// 更新图表 - 简化版本
 const updateCharts = () => {
-  updateExchangeTrendChart()
-  updatePointsTrendChart()
-  updatePopularItemsChart()
-  updateCategoryPieChart()
+  // 图表功能已简化，仅保留基础统计数据显示
+  console.log('统计数据已更新')
 }
 
-// 更新兑换趋势图
-const updateExchangeTrendChart = () => {
-  if (!exchangeTrendChartInstance || !statistics.value.exchange_trend) return
-  
-  const data = statistics.value.exchange_trend
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross'
-      }
-    },
-    xAxis: {
-      type: 'category',
-      data: data.map(item => item.date)
-    },
-    yAxis: {
-      type: 'value',
-      name: '兑换次数'
-    },
-    series: [{
-      name: '兑换次数',
-      type: 'line',
-      smooth: true,
-      data: data.map(item => item.count),
-      itemStyle: {
-        color: '#409eff'
-      },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [{
-            offset: 0, color: 'rgba(64, 158, 255, 0.3)'
-          }, {
-            offset: 1, color: 'rgba(64, 158, 255, 0.1)'
-          }]
-        }
-      }
-    }]
-  }
-  
-  exchangeTrendChartInstance.setOption(option)
-}
+// 图表功能已简化
 
 // 更新积分消耗趋势图
 const updatePointsTrendChart = () => {

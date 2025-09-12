@@ -38,45 +38,49 @@ interface AttendanceStatParams {
 export async function initAttendanceTables() {
   const db = getDatabase()
   // 考勤记录表
-  const hasAttendanceRecords = await db.schema.hasTable('attendance_records')
+  const hasAttendanceRecords = await db.tableExists('attendance_records')
   if (!hasAttendanceRecords) {
-    await db.schema.createTable('attendance_records', (table) => {
-      table.increments('id').primary()
-      table.integer('class_id').notNullable()
-      table.integer('student_id').notNullable()
-      table.date('date').notNullable()
-      table.string('status').notNullable().checkIn(['present', 'absent', 'leave', 'late'])
-      table.text('notes')
-      table.timestamp('created_at').defaultTo(db.fn.now())
-      table.timestamp('updated_at').defaultTo(db.fn.now())
-      table.unique(['student_id', 'date'])
-    })
+    await db.createTable('attendance_records', `
+      CREATE TABLE attendance_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        class_id INTEGER NOT NULL,
+        student_id INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('present', 'absent', 'leave', 'late')),
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(student_id, date)
+      )
+    `)
   }
 
   // 考勤统计表（可选，用于缓存统计数据）
-  const hasAttendanceStats = await db.schema.hasTable('attendance_stats')
+  const hasAttendanceStats = await db.tableExists('attendance_stats')
   if (!hasAttendanceStats) {
-    await db.schema.createTable('attendance_stats', (table) => {
-      table.increments('id').primary()
-      table.integer('class_id').notNullable()
-      table.integer('student_id').notNullable()
-      table.string('month').notNullable().comment('格式: YYYY-MM')
-      table.integer('present_count').defaultTo(0)
-      table.integer('absent_count').defaultTo(0)
-      table.integer('leave_count').defaultTo(0)
-      table.integer('late_count').defaultTo(0)
-      table.integer('total_days').defaultTo(0)
-      table.float('attendance_rate').defaultTo(0)
-      table.timestamp('created_at').defaultTo(db.fn.now())
-      table.timestamp('updated_at').defaultTo(db.fn.now())
-      table.unique(['class_id', 'student_id', 'month'])
-    })
+    await db.createTable('attendance_stats', `
+      CREATE TABLE attendance_stats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        class_id INTEGER NOT NULL,
+        student_id INTEGER NOT NULL,
+        month TEXT NOT NULL, -- 格式: YYYY-MM
+        present_count INTEGER DEFAULT 0,
+        absent_count INTEGER DEFAULT 0,
+        leave_count INTEGER DEFAULT 0,
+        late_count INTEGER DEFAULT 0,
+        total_days INTEGER DEFAULT 0,
+        attendance_rate REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(class_id, student_id, month)
+      )
+    `)
   }
 
   // 创建索引
-  await db.schema.raw('CREATE INDEX IF NOT EXISTS idx_attendance_records_class_date ON attendance_records(class_id, date)')
-  await db.schema.raw('CREATE INDEX IF NOT EXISTS idx_attendance_records_student_date ON attendance_records(student_id, date)')
-  await db.schema.raw('CREATE INDEX IF NOT EXISTS idx_attendance_stats_class_month ON attendance_stats(class_id, month)')
+  await db.exec('CREATE INDEX IF NOT EXISTS idx_attendance_records_class_date ON attendance_records(class_id, date)')
+  await db.exec('CREATE INDEX IF NOT EXISTS idx_attendance_records_student_date ON attendance_records(student_id, date)')
+  await db.exec('CREATE INDEX IF NOT EXISTS idx_attendance_stats_class_month ON attendance_stats(class_id, month)')
 
   console.log('考勤数据表初始化完成')
 }
@@ -88,28 +92,32 @@ async function saveAttendance(params: SaveAttendanceParams) {
     const { class_id, date, records } = params
 
     // 开始事务
-    await db.transaction(async (trx) => {
+    await db.run('BEGIN TRANSACTION')
+    try {
       // 先删除当天该班级的所有考勤记录
-      await trx('attendance_records')
-        .where({ class_id, date })
-        .del()
+      await db.run(
+        'DELETE FROM attendance_records WHERE class_id = ? AND date = ?',
+        [class_id, date]
+      )
 
       // 插入新的考勤记录
-      const recordsToInsert = records.map(record => ({
-        class_id,
-        student_id: record.student_id,
-        date,
-        status: record.status,
-        notes: record.notes || null
-      }))
-
-      if (recordsToInsert.length > 0) {
-        await trx('attendance_records').insert(recordsToInsert)
+      if (records.length > 0) {
+        for (const record of records) {
+          await db.run(
+            'INSERT INTO attendance_records (class_id, student_id, date, status, notes) VALUES (?, ?, ?, ?, ?)',
+            [class_id, record.student_id, date, record.status, record.notes || null]
+          )
+        }
       }
 
       // 更新统计数据
       await updateAttendanceStats(class_id, date)
-    })
+      
+      await db.run('COMMIT')
+    } catch (error) {
+      await db.run('ROLLBACK')
+      throw error
+    }
 
     return {
       success: true,
@@ -128,54 +136,68 @@ async function saveAttendance(params: SaveAttendanceParams) {
 async function getAttendanceHistory(params: AttendanceHistoryParams) {
   const db = getDatabase()
   try {
-    let query = db
-      .select(
-        'ar.id',
-        'ar.date',
-        'ar.status',
-        'ar.notes',
-        'ar.created_at',
-        's.name as student_name',
-        's.student_number',
-        'c.name as class_name',
-        'c.grade',
-        'c.class_number'
-      )
-      .from('attendance_records as ar')
-      .join('students as s', 'ar.student_id', 's.id')
-      .join('classes as c', 'ar.class_id', 'c.id')
+    let sql = `
+      SELECT 
+        ar.id,
+        ar.date,
+        ar.status,
+        ar.notes,
+        ar.created_at,
+        s.name as student_name,
+        s.student_number,
+        c.name as class_name,
+        c.grade,
+        c.class_number
+      FROM attendance_records ar
+      JOIN students s ON ar.student_id = s.id
+      JOIN classes c ON ar.class_id = c.id
+    `
+    
+    const conditions: string[] = []
+    const queryParams: any[] = []
 
     if (params.class_id) {
-      query = query.where('ar.class_id', params.class_id)
+      conditions.push('ar.class_id = ?')
+      queryParams.push(params.class_id)
     }
 
     if (params.student_id) {
-      query = query.where('ar.student_id', params.student_id)
+      conditions.push('ar.student_id = ?')
+      queryParams.push(params.student_id)
     }
 
     if (params.start_date) {
-      query = query.where('ar.date', '>=', params.start_date)
+      conditions.push('ar.date >= ?')
+      queryParams.push(params.start_date)
     }
 
     if (params.end_date) {
-      query = query.where('ar.date', '<=', params.end_date)
+      conditions.push('ar.date <= ?')
+      queryParams.push(params.end_date)
     }
 
     if (params.status) {
-      query = query.where('ar.status', params.status)
+      conditions.push('ar.status = ?')
+      queryParams.push(params.status)
     }
 
-    query = query.orderBy('ar.date', 'desc').orderBy('s.name')
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ')
+    }
+
+    sql += ' ORDER BY ar.date DESC, s.name'
 
     if (params.limit) {
-      query = query.limit(params.limit)
+      sql += ' LIMIT ?'
+      queryParams.push(params.limit)
       
       if (params.offset) {
-        query = query.offset(params.offset)
+        sql += ' OFFSET ?'
+        queryParams.push(params.offset)
       }
     }
 
-    const records = await query
+    const records = await db.all(sql, queryParams)
 
     return {
       success: true,

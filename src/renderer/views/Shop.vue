@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import Layout from './Layout.vue'
-import Shop from '../components/shop/Shop.vue'
+import Shop from '../components/Shop.vue'
 </script>
 
 <style scoped>

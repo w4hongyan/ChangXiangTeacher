@@ -38,43 +38,47 @@ export async function initBackupTables() {
   const db = getDatabase()
   
   // 创建备份记录表
-  if (!(await db.schema.hasTable('backups'))) {
-    await db.schema.createTable('backups', (table) => {
-      table.increments('id').primary()
-      table.text('name').notNullable()
-      table.text('type').notNullable().defaultTo('manual')
-      table.integer('size').notNullable().defaultTo(0)
-      table.datetime('created_at').defaultTo(db.fn.now())
-      table.text('status').notNullable().defaultTo('pending')
-      table.text('path').notNullable()
-      table.text('description')
-      table.boolean('compressed').defaultTo(false)
-      table.boolean('encrypted').defaultTo(false)
-    })
+  if (!(await db.tableExists('backups'))) {
+    await db.createTable('backups', `
+      CREATE TABLE backups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'manual',
+        size INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT NOT NULL DEFAULT 'pending',
+        path TEXT NOT NULL,
+        description TEXT,
+        compressed INTEGER DEFAULT 0,
+        encrypted INTEGER DEFAULT 0
+      )
+    `)
   }
   
   // 创建备份设置表
-  if (!(await db.schema.hasTable('backup_settings'))) {
-    await db.schema.createTable('backup_settings', (table) => {
-      table.integer('id').primary()
-      table.boolean('auto_backup').defaultTo(false)
-      table.text('frequency').defaultTo('daily')
-      table.text('backup_time').defaultTo('02:00')
-      table.integer('keep_count').defaultTo(10)
-      table.text('backup_path').defaultTo('')
-      table.boolean('compress').defaultTo(true)
-      table.boolean('encrypt').defaultTo(false)
-      table.text('encrypt_password').defaultTo('')
-    })
+  if (!(await db.tableExists('backup_settings'))) {
+    await db.createTable('backup_settings', `
+      CREATE TABLE backup_settings (
+        id INTEGER PRIMARY KEY,
+        auto_backup INTEGER DEFAULT 0,
+        frequency TEXT DEFAULT 'daily',
+        backup_time TEXT DEFAULT '02:00',
+        keep_count INTEGER DEFAULT 10,
+        backup_path TEXT DEFAULT '',
+        compress INTEGER DEFAULT 1,
+        encrypt INTEGER DEFAULT 0,
+        encrypt_password TEXT DEFAULT ''
+      )
+    `)
   }
   
   // 插入默认设置
-  const settingsExists = await db('backup_settings').count('* as count').first() as { count: number }
+  const settingsExists = await db.get('SELECT COUNT(*) as count FROM backup_settings')
   if (settingsExists.count === 0) {
-    await db('backup_settings').insert({
-      id: 1,
-      backup_path: path.join(process.cwd(), 'backups')
-    })
+    await db.run('INSERT INTO backup_settings (id, backup_path) VALUES (?, ?)', [
+      1,
+      path.join(process.cwd(), 'backups')
+    ])
   }
   
   console.log('备份数据表初始化完成')
@@ -90,27 +94,30 @@ export function registerBackupHandlers() {
       const { page = 1, pageSize = 20, search = '', type = '' } = options
       const offset = (page - 1) * pageSize
       
-      let query = db('backups')
+      let whereClause = ''
+      let params: any[] = []
       
-      if (search) {
-        query = query.where('name', 'like', `%${search}%`)
+      if (search && type) {
+        whereClause = 'WHERE name LIKE ? AND type = ?'
+        params = [`%${search}%`, type]
+      } else if (search) {
+        whereClause = 'WHERE name LIKE ?'
+        params = [`%${search}%`]
+      } else if (type) {
+        whereClause = 'WHERE type = ?'
+        params = [type]
       }
       
-      if (type) {
-        query = query.where('type', type)
-      }
+      const totalResult = await db.get(`SELECT COUNT(*) as total FROM backups ${whereClause}`, params)
       
-      const total = await query.clone().count('* as total').first() as { total: number }
-      
-      const backups = await query
-        .orderBy('created_at', 'desc')
-        .limit(pageSize)
-        .offset(offset)
-        .select('*')
+      const backups = await db.all(
+        `SELECT * FROM backups ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        [...params, pageSize, offset]
+      )
       
       return {
         data: backups,
-        total: total.total,
+        total: totalResult.total,
         page,
         pageSize
       }
@@ -123,14 +130,14 @@ export function registerBackupHandlers() {
   // 获取备份统计
   ipcMain.handle('backup:stats', async () => {
     try {
-      const stats = await db('backups')
-        .select(
-          db.raw('COUNT(*) as total'),
-          db.raw('SUM(size) as totalSize'),
-          db.raw("SUM(CASE WHEN type = 'cloud' THEN 1 ELSE 0 END) as cloudBackups"),
-          db.raw("SUM(CASE WHEN type = 'auto' THEN 1 ELSE 0 END) as autoBackups")
-        )
-        .first()
+      const stats = await db.get(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(size) as totalSize,
+          SUM(CASE WHEN type = 'cloud' THEN 1 ELSE 0 END) as cloudBackups,
+          SUM(CASE WHEN type = 'auto' THEN 1 ELSE 0 END) as autoBackups
+        FROM backups
+      `)
       
       return stats
     } catch (error) {
@@ -157,17 +164,12 @@ export function registerBackupHandlers() {
       }
       
       // 插入备份记录
-      const result = await db('backups').insert({
-        name: backupName,
-        type: 'manual',
-        path: backupPath,
-        description: description || '',
-        compressed: compress,
-        encrypted: encrypt,
-        status: 'processing'
-      })
+      const result = await db.run(
+        'INSERT INTO backups (name, type, path, description, compressed, encrypted, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [backupName, 'manual', backupPath, description || '', compress ? 1 : 0, encrypt ? 1 : 0, 'pending']
+      )
       
-      const backupId = result[0] as number
+      const backupId = result.lastInsertRowid as number
       
       try {
         // 读取数据库文件
@@ -190,12 +192,10 @@ export function registerBackupHandlers() {
         const fileStats = fs.statSync(backupPath)
         
         // 更新备份记录
-        await db('backups')
-          .where('id', backupId)
-          .update({
-            size: fileStats.size,
-            status: 'completed'
-          })
+        await db.run(
+          'UPDATE backups SET size = ?, status = ? WHERE id = ?',
+          [fileStats.size, 'completed', backupId]
+        )
         
         // 清理旧备份
         await cleanupOldBackups(settings.keep_count)
@@ -203,9 +203,10 @@ export function registerBackupHandlers() {
         return { id: backupId, path: backupPath, size: fileStats.size }
       } catch (error) {
         // 更新状态为失败
-        await db('backups')
-          .where('id', backupId)
-          .update({ status: 'failed' })
+        await db.run(
+          'UPDATE backups SET status = ? WHERE id = ?',
+          ['failed', backupId]
+        )
         throw error
       }
     } catch (error) {
@@ -224,7 +225,7 @@ export function registerBackupHandlers() {
       
       if (backupId) {
         // 从备份记录恢复
-        const backup = await db('backups').where('id', backupId).first() as BackupItem
+        const backup = await db.get('SELECT * FROM backups WHERE id = ?', [backupId]) as BackupItem
         if (!backup) {
           throw new Error('备份记录不存在')
         }
@@ -292,7 +293,7 @@ export function registerBackupHandlers() {
   // 下载备份
   ipcMain.handle('backup:download', async (event, backupId) => {
     try {
-      const backup = await db('backups').where('id', backupId).first() as BackupItem
+      const backup = await db.get('SELECT * FROM backups WHERE id = ?', [backupId]) as BackupItem
       if (!backup) {
         throw new Error('备份记录不存在')
       }
@@ -325,7 +326,7 @@ export function registerBackupHandlers() {
   // 删除备份
   ipcMain.handle('backup:delete', async (event, backupId) => {
     try {
-      const backup = await db('backups').where('id', backupId).first() as BackupItem
+      const backup = await db.get('SELECT * FROM backups WHERE id = ?', [backupId]) as BackupItem
       if (!backup) {
         throw new Error('备份记录不存在')
       }
@@ -336,7 +337,7 @@ export function registerBackupHandlers() {
       }
       
       // 删除记录
-      await db('backups').where('id', backupId).del()
+      await db.run('DELETE FROM backups WHERE id = ?', [backupId])
       
       return { success: true }
     } catch (error) {
@@ -358,7 +359,7 @@ export function registerBackupHandlers() {
   // 保存备份设置
   ipcMain.handle('backup:saveSettings', async (event, settings) => {
     try {
-      db.prepare(`
+      await db.run(`
         UPDATE backup_settings SET
           auto_backup = ?,
           frequency = ?,
@@ -369,7 +370,7 @@ export function registerBackupHandlers() {
           encrypt = ?,
           encrypt_password = ?
         WHERE id = 1
-      `).run(
+      `, [
         settings.autoBackup ? 1 : 0,
         settings.frequency,
         settings.backupTime,
@@ -378,7 +379,7 @@ export function registerBackupHandlers() {
         settings.compress ? 1 : 0,
         settings.encrypt ? 1 : 0,
         settings.encryptPassword
-      )
+      ])
       
       return { success: true }
     } catch (error) {
@@ -412,7 +413,7 @@ export function registerBackupHandlers() {
 // 获取备份设置
 async function getBackupSettings(): Promise<BackupSettings> {
   const db = getDatabase()
-  const settings = await db('backup_settings').where('id', 1).first() as any
+  const settings = await db.get('SELECT * FROM backup_settings WHERE id = ?', [1]) as any
   
   if (!settings) {
     throw new Error('备份设置不存在')
@@ -436,11 +437,10 @@ async function cleanupOldBackups(keepCount: number) {
   
   try {
     // 获取超出保留数量的备份
-    const oldBackups = await db('backups')
-      .where('type', 'auto')
-      .orderBy('created_at', 'desc')
-      .offset(keepCount)
-      .select('*') as BackupItem[]
+    const oldBackups = await db.all(
+      'SELECT * FROM backups WHERE type = ? ORDER BY created_at DESC LIMIT -1 OFFSET ?',
+      ['auto', keepCount]
+    ) as BackupItem[]
     
     for (const backup of oldBackups) {
       // 删除文件
@@ -449,7 +449,7 @@ async function cleanupOldBackups(keepCount: number) {
       }
       
       // 删除记录
-      await db('backups').where('id', backup.id).del()
+      await db.run('DELETE FROM backups WHERE id = ?', [backup.id])
     }
     
     console.log(`清理了 ${oldBackups.length} 个旧备份`)
