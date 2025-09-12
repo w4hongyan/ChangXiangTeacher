@@ -59,6 +59,10 @@
           <el-icon><TrendCharts /></el-icon>
           <template #title>成绩管理</template>
         </el-menu-item>
+        <el-menu-item index="/grade-reports">
+          <el-icon><DataAnalysis /></el-icon>
+          <template #title>成绩报告</template>
+        </el-menu-item>
         <el-menu-item index="/points">
           <el-icon><Trophy /></el-icon>
           <template #title>积分管理</template>
@@ -135,7 +139,8 @@ import {
   UserFilled,
   FolderOpened,
   Upload,
-  Operation
+  Operation,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../stores/settings'
 

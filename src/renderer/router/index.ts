@@ -43,6 +43,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/grade-reports',
+    name: 'GradeReports',
+    component: () => import('../views/GradeReports.vue'),
+    meta: {
+      title: '成绩报告'
+    }
+  },
+  {
     path: '/points',
     name: 'Points',
     component: () => import('../views/Points.vue'),

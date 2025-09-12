@@ -49,6 +49,11 @@ declare global {
         getExamTypes: () => Promise<any>
         import: (data: any[]) => Promise<any>
         export: (params?: any) => Promise<any>
+        // Enhanced grade report functions
+        getReports: (params?: any) => Promise<any>
+        generateClassReport: (classId: number, subject: string, examType: string) => Promise<any>
+        generateComparison: (params: any) => Promise<any>
+        deleteReport: (id: number) => Promise<any>
       }
       points: {
         list: (params?: any) => Promise<any>
@@ -183,7 +188,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSubjects: () => ipcRenderer.invoke('grades:getSubjects'),
     getExamTypes: () => ipcRenderer.invoke('grades:getExamTypes'),
     import: (data: any[]) => ipcRenderer.invoke('grades:import', data),
-    export: (params?: any) => ipcRenderer.invoke('grades:export', params)
+    export: (params?: any) => ipcRenderer.invoke('grades:export', params),
+    // Enhanced grade report functions
+    getReports: (params?: any) => ipcRenderer.invoke('grades:getReports', params),
+    generateClassReport: (classId: number, subject: string, examType: string) => ipcRenderer.invoke('grades:generateClassReport', classId, subject, examType),
+    generateComparison: (params: any) => ipcRenderer.invoke('grades:generateComparison', params),
+    deleteReport: (id: number) => ipcRenderer.invoke('grades:deleteReport', id)
   },
   points: {
     list: (params?: any) => ipcRenderer.invoke('points:list', params),

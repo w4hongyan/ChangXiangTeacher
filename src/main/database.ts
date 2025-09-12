@@ -161,17 +161,59 @@ export class DatabaseManager {
       )
     `)
 
+    // 创建完整的文档模板表
     this.db.run(`
-      CREATE TABLE IF NOT EXISTS templates (
+      CREATE TABLE IF NOT EXISTS document_templates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        category TEXT NOT NULL,
-        content TEXT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        category VARCHAR(100) NOT NULL,
         description TEXT,
-        tags TEXT,
-        is_public BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        content LONGTEXT,
+        variables JSON,
+        settings JSON,
+        preview_image VARCHAR(500),
+        tags VARCHAR(500),
+        version VARCHAR(20) DEFAULT '1.0.0',
+        is_public BOOLEAN DEFAULT FALSE,
+        is_system BOOLEAN DEFAULT FALSE,
+        is_active BOOLEAN DEFAULT TRUE,
+        download_count INTEGER DEFAULT 0,
+        rating DECIMAL(3,2) DEFAULT 0,
+        created_by INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // 创建文档生成记录表
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS document_generations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER,
+        template_name VARCHAR(255),
+        output_format VARCHAR(20),
+        file_path VARCHAR(500),
+        variables JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (template_id) REFERENCES document_templates(id)
+      )
+    `)
+
+    // 创建成绩报告表
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS grade_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title VARCHAR(255) NOT NULL,
+        class_id INTEGER,
+        subject VARCHAR(100),
+        exam_type VARCHAR(50),
+        semester VARCHAR(20),
+        year INTEGER,
+        report_type VARCHAR(50) NOT NULL,
+        content LONGTEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (class_id) REFERENCES classes(id)
       )
     `)
 
@@ -186,6 +228,39 @@ export class DatabaseManager {
         classroom TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (class_id) REFERENCES classes(id)
+      )
+    `)
+
+    // 创建积分商城相关表
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS rewards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        points_required INTEGER NOT NULL,
+        stock INTEGER DEFAULT -1,
+        image TEXT,
+        category TEXT DEFAULT 'physical',
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS reward_exchanges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        reward_id INTEGER NOT NULL,
+        quantity INTEGER DEFAULT 1,
+        points_cost INTEGER NOT NULL,
+        status TEXT DEFAULT 'completed',
+        exchange_date DATE,
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (student_id) REFERENCES students(id),
+        FOREIGN KEY (reward_id) REFERENCES rewards(id)
       )
     `)
   }

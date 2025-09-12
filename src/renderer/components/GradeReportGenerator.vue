@@ -90,6 +90,21 @@
           </el-col>
         </el-row>
 
+        <el-row :gutter="20" v-if="reportConfig.type === 'student'">
+          <el-col :span="12">
+            <el-form-item label="学生选择">
+              <el-select v-model="reportConfig.studentId" placeholder="请选择学生" style="width: 100%" filterable>
+                <el-option
+                  v-for="student in filteredStudents"
+                  :key="student.id"
+                  :label="`${student.name} (${student.student_id})`"
+                  :value="student.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
         <el-form-item label="报告内容">
           <el-checkbox-group v-model="reportConfig.contents">
             <el-checkbox label="basic" border>基础统计</el-checkbox>
@@ -209,6 +224,7 @@ interface ReportConfig {
   examTypes: string[]
   contents: string[]
   template: string
+  studentId?: string
 }
 
 interface ReportHistoryItem {
@@ -221,9 +237,17 @@ interface ReportHistoryItem {
   filePath: string
 }
 
+interface Student {
+  id: string
+  name: string
+  student_id: string
+  class_id: string
+}
+
 const props = defineProps<{
   classes: Class[]
   subjects: Subject[]
+  students?: Student[]
 }>()
 
 // 响应式数据
@@ -251,7 +275,20 @@ const historyPagination = reactive({
 
 // 计算属性
 const canGenerate = computed(() => {
-  return reportConfig.type && reportConfig.format && reportConfig.contents.length > 0
+  const baseValid = reportConfig.type && reportConfig.format && reportConfig.contents.length > 0
+  if (reportConfig.type === 'student') {
+    return baseValid && reportConfig.studentId && reportConfig.classIds.length > 0
+  }
+  return baseValid
+})
+
+const filteredStudents = computed(() => {
+  if (!props.students || reportConfig.classIds.length === 0) {
+    return []
+  }
+  return props.students.filter(student => 
+    reportConfig.classIds.includes(student.class_id)
+  )
 })
 
 // 方法
@@ -263,17 +300,49 @@ const generateReport = async () => {
 
   generating.value = true
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    let result
     
-    // 生成报告预览
-    reportPreview.value = generateReportPreview()
+    if (reportConfig.type === 'class') {
+      // 生成班级成绩报告
+      const params = {
+        class_id: reportConfig.classIds[0],
+        subject: reportConfig.subjectIds.length > 0 ? reportConfig.subjectIds[0] : null,
+        exam_type: reportConfig.examTypes[0] || 'final',
+        semester: '上学期',
+        year: new Date().getFullYear()
+      }
+      
+      result = await window.electronAPI.invoke('grades:generateClassReport', params)
+      if (result && result.success) {
+        reportPreview.value = generateClassReportPreview(result.data.analysis)
+      } else {
+        throw new Error(result?.error || '班级报告生成失败')
+      }
+    } else if (reportConfig.type === 'student') {
+      // 生成学生个人报告
+      const params = {
+        student_id: reportConfig.studentId,
+        class_id: reportConfig.classIds[0],
+        semester: '上学期',
+        year: new Date().getFullYear()
+      }
+      
+      result = await window.electronAPI.invoke('grades:generateStudentReport', params)
+      if (result && result.success) {
+        reportPreview.value = generateStudentReportPreview(result.data.analysis)
+      } else {
+        throw new Error(result?.error || '学生报告生成失败')
+      }
+    } else {
+      // 其他类型使用模拟数据
+      reportPreview.value = generateReportPreview()
+    }
+    
     reportGenerated.value = true
-    
     ElMessage.success('报告生成成功')
   } catch (error) {
     console.error('生成报告失败:', error)
-    ElMessage.error('生成报告失败')
+    ElMessage.error(`生成报告失败: ${error.message}`)
   } finally {
     generating.value = false
   }
@@ -358,6 +427,166 @@ const generateReportPreview = (): string => {
           </ul>
         </div>
       ` : ''}
+    </div>
+  `
+}
+
+// 生成班级报告预览
+const generateClassReportPreview = (analysis: any): string => {
+  const currentDate = new Date().toLocaleDateString('zh-CN')
+  const stats = analysis.statistics
+  
+  return `
+    <div class="report-content">
+      <div class="report-header">
+        <h1>${analysis.class_name} ${analysis.subject} ${analysis.exam_type} 成绩报告</h1>
+        <p class="report-date">生成日期: ${currentDate}</p>
+      </div>
+      
+      <div class="report-summary">
+        <h2>班级概况</h2>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="label">班级名称:</span>
+            <span class="value">${analysis.class_name}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">考试科目:</span>
+            <span class="value">${analysis.subject}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">考试类型:</span>
+            <span class="value">${analysis.exam_type}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">学期:</span>
+            <span class="value">${analysis.semester} ${analysis.year}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h2>成绩统计</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">${stats.total_students}</div>
+            <div class="stat-label">参考人数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${stats.average_score}</div>
+            <div class="stat-label">平均分</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${stats.max_score}</div>
+            <div class="stat-label">最高分</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${stats.min_score}</div>
+            <div class="stat-label">最低分</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${stats.pass_rate}%</div>
+            <div class="stat-label">及格率</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${stats.excellent_rate}%</div>
+            <div class="stat-label">优秀率</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h2>优秀学生</h2>
+        <div class="student-list">
+          ${analysis.top_students.map((student: any, index: number) => `
+            <div class="student-item">
+              <span class="rank">${index + 1}</span>
+              <span class="name">${student.student_name}</span>
+              <span class="score">${student.score}分</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h2>需要关注的学生</h2>
+        <div class="student-list">
+          ${analysis.improvement_needed.map((student: any) => `
+            <div class="student-item attention">
+              <span class="name">${student.student_name}</span>
+              <span class="score">${student.score}分</span>
+              <span class="suggestion">${student.suggestions}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `
+}
+
+// 生成学生个人报告预览
+const generateStudentReportPreview = (analysis: any): string => {
+  const currentDate = new Date().toLocaleDateString('zh-CN')
+  
+  return `
+    <div class="report-content">
+      <div class="report-header">
+        <h1>${analysis.student_name} 个人成绩报告</h1>
+        <p class="report-date">生成日期: ${currentDate}</p>
+      </div>
+      
+      <div class="report-summary">
+        <h2>学生信息</h2>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="label">学生姓名:</span>
+            <span class="value">${analysis.student_name}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">学号:</span>
+            <span class="value">${analysis.student_number}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">班级:</span>
+            <span class="value">${analysis.class_name}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">学期:</span>
+            <span class="value">${analysis.semester} ${analysis.year}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h2>各科成绩</h2>
+        <div class="subject-grades">
+          ${analysis.subject_grades.map((grade: any) => `
+            <div class="grade-item">
+              <div class="subject">${grade.subject}</div>
+              <div class="score ${grade.score >= 90 ? 'excellent' : grade.score >= 60 ? 'pass' : 'fail'}">${grade.score}分</div>
+              <div class="rank">班级第${grade.class_rank}名</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h2>成绩分析</h2>
+        <div class="analysis-content">
+          <p><strong>总体表现:</strong> ${analysis.overall_performance}</p>
+          <p><strong>优势科目:</strong> ${analysis.strengths.join('、')}</p>
+          <p><strong>薄弱科目:</strong> ${analysis.weaknesses.join('、')}</p>
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h2>改进建议</h2>
+        <ul class="suggestions-list">
+          ${analysis.suggestions.map((suggestion: string) => `
+            <li>${suggestion}</li>
+          `).join('')}
+        </ul>
+      </div>
     </div>
   `
 }
@@ -653,6 +882,101 @@ onMounted(() => {
   background: #f0f9ff;
   border-left: 4px solid #409eff;
   border-radius: 4px;
+}
+
+/* 学生列表样式 */
+.student-list .student-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.student-list .student-item .rank {
+  width: 30px;
+  height: 30px;
+  background: #409eff;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 12px;
+}
+
+.student-list .student-item .name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.student-list .student-item .score {
+  font-weight: bold;
+  color: #409eff;
+}
+
+.student-list .student-item .suggestion {
+  margin-left: 12px;
+  color: #666;
+  font-size: 12px;
+}
+
+.student-list .student-item.attention {
+  background: #fef0f0;
+  border-left: 4px solid #f56c6c;
+}
+
+.student-list .student-item.attention .score {
+  color: #f56c6c;
+}
+
+/* 学生个人报告样式 */
+.subject-grades .grade-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.subject-grades .grade-item .subject {
+  flex: 1;
+  font-weight: 500;
+}
+
+.subject-grades .grade-item .score {
+  margin: 0 12px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.subject-grades .grade-item .score.excellent {
+  background: #f0f9ff;
+  color: #1890ff;
+}
+
+.subject-grades .grade-item .score.pass {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.subject-grades .grade-item .score.fail {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+.subject-grades .grade-item .rank {
+  color: #666;
+  font-size: 12px;
+}
+
+.analysis-content p {
+  margin-bottom: 12px;
+  line-height: 1.6;
 }
 
 .pagination {

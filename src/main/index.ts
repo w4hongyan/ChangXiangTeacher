@@ -9,6 +9,9 @@ import { setupPointHandlers } from './handlers/point'
 import { setupScheduleHandlers } from './handlers/schedule'
 import { setupCalendarHandlers } from './handlers/calendar'
 import { setupTemplateHandlers } from './handlers/template'
+import { setupEnhancedTemplateHandlers } from './handlers/templateEnhanced'
+import { setupGradeHandlers } from './handlers/grades'
+import { setupEnhancedGradeHandlers } from './handlers/gradesEnhanced'
 import { setupShopHandlers } from './handlers/shop'
 import { registerAttendanceHandlers, initAttendanceTables } from './handlers/attendance'
 import { registerBackupHandlers, initBackupTables, startAutoBackupScheduler } from './handlers/backup'
@@ -179,6 +182,7 @@ app.whenReady().then(async () => {
   
   // 设置成绩管理handlers
   setupGradeHandlers(dbManager)
+  setupEnhancedGradeHandlers(dbManager)
   
   // 设置积分管理handlers
   setupPointHandlers(dbManager)
@@ -194,6 +198,9 @@ app.whenReady().then(async () => {
   
   // 设置文档模板handlers
   setupTemplateHandlers(dbManager)
+  
+  // 设置增强版文档模板handlers
+  setupEnhancedTemplateHandlers(dbManager)
   
   // 设置积分商城handlers
   setupShopHandlers(dbManager)
