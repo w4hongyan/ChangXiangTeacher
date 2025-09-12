@@ -21,70 +21,85 @@
         <template #title>首页</template>
       </el-menu-item>
 
-      <el-menu-item index="/classes">
-        <el-icon><School /></el-icon>
-        <template #title>班级管理</template>
-      </el-menu-item>
+      <!-- 基础管理 -->
+      <el-sub-menu index="basic">
+        <template #title>
+          <el-icon><School /></el-icon>
+          <span>基础管理</span>
+        </template>
+        <el-menu-item index="/classes">
+          <el-icon><School /></el-icon>
+          <template #title>班级管理</template>
+        </el-menu-item>
+        <el-menu-item index="/students">
+          <el-icon><User /></el-icon>
+          <template #title>学生管理</template>
+        </el-menu-item>
+        <el-menu-item index="/seating">
+          <el-icon><Grid /></el-icon>
+          <template #title>排位管理</template>
+        </el-menu-item>
+      </el-sub-menu>
 
-      <el-menu-item index="/students">
-        <el-icon><User /></el-icon>
-        <template #title>学生管理</template>
-      </el-menu-item>
+      <!-- 教学工具 -->
+      <el-sub-menu index="teaching">
+        <template #title>
+          <el-icon><UserFilled /></el-icon>
+          <span>教学工具</span>
+        </template>
+        <el-menu-item index="/attendance">
+          <el-icon><UserFilled /></el-icon>
+          <template #title>班级点名</template>
+        </el-menu-item>
+        <el-menu-item index="/lottery">
+          <el-icon><Operation /></el-icon>
+          <template #title>课堂抽签</template>
+        </el-menu-item>
+        <el-menu-item index="/grades">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>成绩管理</template>
+        </el-menu-item>
+        <el-menu-item index="/points">
+          <el-icon><Trophy /></el-icon>
+          <template #title>积分管理</template>
+        </el-menu-item>
+        <el-menu-item index="/shop">
+          <el-icon><ShoppingBag /></el-icon>
+          <template #title>积分商城</template>
+        </el-menu-item>
+      </el-sub-menu>
 
-      <el-menu-item index="/seating">
-        <el-icon><Grid /></el-icon>
-        <template #title>排位管理</template>
-      </el-menu-item>
-
-      <el-menu-item index="/grades">
-        <el-icon><TrendCharts /></el-icon>
-        <template #title>成绩管理</template>
-      </el-menu-item>
-
-      <el-menu-item index="/points">
-        <el-icon><Trophy /></el-icon>
-        <template #title>积分管理</template>
-      </el-menu-item>
-
-      <el-menu-item index="/shop">
-        <el-icon><ShoppingBag /></el-icon>
-        <template #title>积分商城</template>
-      </el-menu-item>
-
-      <el-menu-item index="/attendance">
-        <el-icon><UserFilled /></el-icon>
-        <template #title>班级点名</template>
-      </el-menu-item>
-
-      <el-menu-item index="/backup">
-        <el-icon><FolderOpened /></el-icon>
-        <template #title>数据备份</template>
-      </el-menu-item>
-
-      <el-menu-item index="/cloud">
-        <el-icon><Upload /></el-icon>
-        <template #title>云存储管理</template>
-      </el-menu-item>
-
-      <el-menu-item index="/schedule">
-        <el-icon><Calendar /></el-icon>
-        <template #title>课程表管理</template>
-      </el-menu-item>
-
-      <el-menu-item index="/calendar">
-        <el-icon><Clock /></el-icon>
-        <template #title>学期日历</template>
-      </el-menu-item>
-
-      <el-menu-item index="/templates">
-        <el-icon><Document /></el-icon>
-        <template #title>文档模板</template>
-      </el-menu-item>
-
-      <el-menu-item index="/settings">
-        <el-icon><Setting /></el-icon>
-        <template #title>系统设置</template>
-      </el-menu-item>
+      <!-- 系统功能 -->
+      <el-sub-menu index="system">
+        <template #title>
+          <el-icon><Setting /></el-icon>
+          <span>系统功能</span>
+        </template>
+        <el-menu-item index="/schedule">
+          <el-icon><Calendar /></el-icon>
+          <template #title>课程表管理</template>
+        </el-menu-item>
+        <el-menu-item index="/calendar">
+          <el-icon><Clock /></el-icon>
+          <template #title>学期日历</template>
+        </el-menu-item>
+        <el-menu-item index="/templates">
+          <el-icon><Document /></el-icon>
+          <template #title>文档模板</template>
+        </el-menu-item>
+        <el-menu-item index="/backup">
+          <el-icon><FolderOpened /></el-icon>
+          <template #title>数据备份</template>
+        </el-menu-item>
+        <el-menu-item index="/cloud">
+          <el-icon><Upload /></el-icon>
+          <template #title>云存储管理</template>
+        </el-menu-item>
+        <el-menu-item index="/settings">
+          <el-icon><Setting /></el-icon>
+          <template #title>系统设置</template>
+        </el-menu-item>
+      </el-sub-menu>
     </el-menu>
 
     <div class="sidebar-footer">
@@ -119,7 +134,8 @@ import {
   DArrowRight,
   UserFilled,
   FolderOpened,
-  Upload
+  Upload,
+  Operation
 } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../stores/settings'
 
@@ -175,6 +191,26 @@ const settingsStore = useSettingsStore()
   border-right: none;
 }
 
+.sidebar-menu .el-sub-menu__title {
+  height: 48px;
+  line-height: 48px;
+  font-weight: 500;
+}
+
+.sidebar-menu .el-menu-item {
+  height: 40px;
+  line-height: 40px;
+  padding-left: 50px !important;
+}
+
+.sidebar-menu .el-sub-menu .el-menu-item {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.sidebar-menu .el-sub-menu .el-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
 .sidebar-footer {
   padding: 10px;
   border-top: 1px solid #e4e7ed;
@@ -201,5 +237,13 @@ const settingsStore = useSettingsStore()
 
 :global(.dark-theme) .sidebar-footer {
   border-top-color: #303030;
+}
+
+:global(.dark-theme) .sidebar-menu .el-sub-menu .el-menu-item {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+:global(.dark-theme) .sidebar-menu .el-sub-menu .el-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.2);
 }
 </style>

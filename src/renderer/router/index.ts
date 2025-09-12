@@ -65,6 +65,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '班级点名' }
   },
   {
+    path: '/lottery',
+    name: 'Lottery',
+    component: () => import('../views/Lottery.vue'),
+    meta: { title: '课堂抽签' }
+  },
+  {
       path: '/backup',
       name: 'Backup',
       component: () => import('../views/Backup.vue'),
