@@ -9,13 +9,12 @@ export class DatabaseManager {
   private SQL: any
 
   constructor() {
-    // 将数据库移动到软件目录中，方便移动复制
-    // 使用应用程序安装目录下的data文件夹存储数据库
-    const appPath = app.getAppPath()
-    const dataDir = path.join(appPath, 'data')
+    // 使用用户数据目录存储数据库，避免在只读的asar文件中创建文件
+    const userDataPath = app.getPath('userData')
+    const dataDir = path.join(userDataPath, 'data')
     this.dbPath = path.join(dataDir, 'database.db')
     console.log('应用程序使用的数据库路径:', this.dbPath)
-    console.log('appPath:', appPath)
+    console.log('userDataPath:', userDataPath)
     console.log('dataDir:', dataDir)
   }
 

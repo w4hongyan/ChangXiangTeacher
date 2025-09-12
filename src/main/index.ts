@@ -118,20 +118,33 @@ function createWindow(): void {
     height: 800,
     minWidth: 1000,
     minHeight: 600,
-    show: false,
+    show: true,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'default',
+    webSecurity: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: false
     }
   })
 
   mainWindow.on('ready-to-show', () => {
+    console.log('Window ready to show')
     mainWindow.show()
+    mainWindow.focus()
+    console.log('Window shown and focused')
+  })
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription)
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Page loaded successfully')
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
