@@ -18,18 +18,23 @@ export function setupStudentHandlers(db: DatabaseManager) {
         page_size = 20
       } = params
 
-      const offset = (page - 1) * page_size
+      // Coerce potentially string inputs to numbers to avoid datatype mismatch in SQL bindings
+      const pageNum = Number(page) || 1
+      const pageSizeNum = Number(page_size) || 20
+      const classIdNum = class_id !== undefined && class_id !== null && class_id !== '' ? Number(class_id) : undefined
+
+      const offset = (pageNum - 1) * pageSizeNum
       let whereClause = 'WHERE s.is_active = ?'
-      let paramsArray: any[] = [is_active ? 1 : 0]
+      let paramsArray: any[] = [1]  // 固定查询活跃学生
 
       if (keyword) {
         whereClause += ' AND (s.name LIKE ? OR s.student_id LIKE ?)'
         paramsArray.push(`%${keyword}%`, `%${keyword}%`)
       }
 
-      if (class_id) {
+      if (classIdNum !== undefined) {
         whereClause += ' AND s.class_id = ?'
-        paramsArray.push(class_id)
+        paramsArray.push(classIdNum)
       }
 
       // 获取总数
@@ -67,7 +72,7 @@ export function setupStudentHandlers(db: DatabaseManager) {
         ORDER BY s.created_at DESC
         LIMIT ? OFFSET ?
       `
-      paramsArray.push(page_size, offset)
+      paramsArray.push(pageSizeNum, offset)
 
       console.log('Select Query:', selectQuery); // Log select query
       console.log('Select Params:', paramsArray); // Log select query parameters
@@ -90,9 +95,9 @@ export function setupStudentHandlers(db: DatabaseManager) {
         data: {
           items: safeItems,
           total: Number(total) || 0,
-          page: Number(page) || 1,
-          page_size: Number(page_size) || 20,
-          total_pages: Math.ceil((Number(total) || 0) / (Number(page_size) || 20))
+          page: pageNum,
+          page_size: pageSizeNum,
+          total_pages: Math.ceil((Number(total) || 0) / pageSizeNum)
         }
       }
     } catch (error) {
@@ -320,6 +325,40 @@ export function setupStudentHandlers(db: DatabaseManager) {
   };
   ipcMain.handle('students:getClasses', handleGetClassesForStudents);
 
+  // 获取所有活跃学生（不分页）
+  const handleGetAllStudents = async (_: IpcMainInvokeEvent) => {
+    try {
+      const query = `
+        SELECT
+          s.id,
+          s.student_id,
+          s.name,
+          s.class_id,
+          s.is_active,
+          s.created_at,
+          c.name as class_name
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE s.is_active = 1
+        ORDER BY s.created_at DESC
+      `
+      const items = await db.all(query)
+      let safeItems: any[] = []
+      if (Array.isArray(items)) {
+        if (items.length > 0 && Array.isArray((items as any)[0])) {
+          safeItems = (items as any)[0]
+        } else {
+          safeItems = items as any[]
+        }
+      }
+      return { success: true, data: safeItems }
+    } catch (error) {
+      console.error('获取全部学生失败:', error)
+      return { success: false, error: error instanceof Error ? error.message : '获取全部学生失败' }
+    }
+  };
+  ipcMain.handle('students:getAll', handleGetAllStudents);
+
   // 导出学生数据
   const handleExportStudents = async (_: IpcMainInvokeEvent, params: StudentQueryParams = {}) => {
     try {
@@ -339,9 +378,11 @@ export function setupStudentHandlers(db: DatabaseManager) {
         paramsArray.push(`%${keyword}%`, `%${keyword}%`)
       }
 
-      if (class_id) {
+      // Ensure class_id is numeric if provided
+      const classIdNum = class_id !== undefined && class_id !== null && class_id !== '' ? Number(class_id) : undefined
+      if (classIdNum !== undefined) {
         whereClause += ' AND s.class_id = ?'
-        paramsArray.push(class_id)
+        paramsArray.push(classIdNum)
       }
 
       // 获取所有符合条件的学生数据

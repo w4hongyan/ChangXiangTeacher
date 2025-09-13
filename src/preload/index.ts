@@ -8,6 +8,8 @@ declare global {
       dbRun: (sql: string, params?: any[]) => Promise<any>
       dbGet: (sql: string, params?: any[]) => Promise<any>
       dbAll: (sql: string, params?: any[]) => Promise<any[]>
+      // 添加通用 invoke 方法的类型声明，兼容旧代码中直接调用 window.electronAPI.invoke(channel, ...args)
+      invoke: (channel: string, ...args: any[]) => Promise<any>
       classes: {
         getAll: () => Promise<any>
         getById: (id: number) => Promise<any>
@@ -148,6 +150,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   dbRun: (sql: string, params?: any[]) => ipcRenderer.invoke('db-run', sql, params),
   dbGet: (sql: string, params?: any[]) => ipcRenderer.invoke('db-get', sql, params),
   dbAll: (sql: string, params?: any[]) => ipcRenderer.invoke('db-all', sql, params),
+  // 暴露通用 invoke，兼容直接调用 window.electronAPI.invoke(channel, ...args)
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
   classes: {
     getAll: () => ipcRenderer.invoke('classes:getAll'),
     getById: (id: number) => ipcRenderer.invoke('classes:getById', id),

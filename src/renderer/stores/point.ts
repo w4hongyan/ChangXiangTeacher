@@ -43,6 +43,11 @@ export const usePointStore = defineStore('point', () => {
     }
   }
 
+  // 兼容别名：getPoints -> fetchPoints
+  async function getPoints(params?: PointQueryParams) {
+    return fetchPoints(params)
+  }
+
   // 创建积分记录
   async function createPoint(data: PointFormData) {
     loading.value = true
@@ -62,6 +67,11 @@ export const usePointStore = defineStore('point', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // 兼容别名：addPoint -> createPoint
+  async function addPoint(data: PointFormData) {
+    return createPoint(data)
   }
 
   // 删除积分记录
@@ -177,120 +187,7 @@ export const usePointStore = defineStore('point', () => {
     currentPage.value = 1
   }
 
-  // 积分商城相关方法
-  async function getRewards() {
-    loading.value = true
-    error.value = null
-    try {
-      const result = await window.electronAPI.invoke('points:getRewards')
-      if (result.success) {
-        return { success: true, data: result.data }
-      } else {
-        error.value = result.error
-        return { success: false, error: result.error }
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '获取奖励列表失败'
-      return { success: false, error: error.value }
-    } finally {
-      loading.value = false
-    }
-  }
 
-  async function createReward(reward: any) {
-    loading.value = true
-    error.value = null
-    try {
-      const result = await window.electronAPI.invoke('points:createReward', reward)
-      if (result.success) {
-        return { success: true, data: result.data }
-      } else {
-        error.value = result.error
-        return { success: false, error: result.error }
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '创建奖励失败'
-      return { success: false, error: error.value }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function updateReward(id: number, reward: any) {
-    loading.value = true
-    error.value = null
-    try {
-      const result = await window.electronAPI.invoke('points:updateReward', id, reward)
-      if (result.success) {
-        return { success: true, data: result.data }
-      } else {
-        error.value = result.error
-        return { success: false, error: result.error }
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '更新奖励失败'
-      return { success: false, error: error.value }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function deleteReward(id: number) {
-    loading.value = true
-    error.value = null
-    try {
-      const result = await window.electronAPI.invoke('points:deleteReward', id)
-      if (result.success) {
-        return { success: true }
-      } else {
-        error.value = result.error
-        return { success: false, error: result.error }
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '删除奖励失败'
-      return { success: false, error: error.value }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function exchangeReward(exchange: any) {
-    loading.value = true
-    error.value = null
-    try {
-      const result = await window.electronAPI.invoke('points:exchangeReward', exchange)
-      if (result.success) {
-        return { success: true, data: result.data }
-      } else {
-        error.value = result.error
-        return { success: false, error: result.error }
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '兑换奖励失败'
-      return { success: false, error: error.value }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function getExchangeRecords(filters?: any) {
-    loading.value = true
-    error.value = null
-    try {
-      const result = await window.electronAPI.invoke('points:getExchangeRecords', filters)
-      if (result.success) {
-        return { success: true, data: result.data }
-      } else {
-        error.value = result.error
-        return { success: false, error: result.error }
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '获取兑换记录失败'
-      return { success: false, error: error.value }
-    } finally {
-      loading.value = false
-    }
-  }
 
   return {
     points: computed(() => points.value),
@@ -304,18 +201,15 @@ export const usePointStore = defineStore('point', () => {
     pageSize: computed(() => pageSize.value),
     
     fetchPoints,
+    // 兼容导出
+    getPoints,
     createPoint,
+    addPoint,
     deletePoint,
     fetchStudentPointsSummary,
     fetchGroupPointsSummary,
     fetchPointRules,
     updatePointRules,
-    resetState,
-    getRewards,
-    createReward,
-    updateReward,
-    deleteReward,
-    exchangeReward,
-    getExchangeRecords
+    resetState
   }
 })

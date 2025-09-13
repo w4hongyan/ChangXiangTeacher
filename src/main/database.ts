@@ -108,9 +108,9 @@ export class DatabaseManager {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         class_id INTEGER NOT NULL,
         student_id INTEGER,
-        row_number INTEGER NOT NULL,
-        col_number INTEGER NOT NULL,
-        is_occupied BOOLEAN DEFAULT 0,
+        row INTEGER NOT NULL,
+        column INTEGER NOT NULL,
+        seat_type TEXT DEFAULT 'normal',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (class_id) REFERENCES classes(id),
@@ -148,16 +148,49 @@ export class DatabaseManager {
       )
     `)
 
+    // 学生小组与成员关系
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        class_id INTEGER,
+        description TEXT,
+        created_by INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (class_id) REFERENCES classes(id)
+      )
+    `)
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS student_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER,
+        student_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (group_id) REFERENCES groups(id),
+        FOREIGN KEY (student_id) REFERENCES students(id),
+        UNIQUE(group_id, student_id)
+      )
+    `)
+
     this.db.run(`
       CREATE TABLE IF NOT EXISTS points (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER NOT NULL,
+        student_id INTEGER,
+        class_id INTEGER,
+        group_id INTEGER,
         points INTEGER NOT NULL,
-        reason TEXT,
         type TEXT,
-        date DATE DEFAULT CURRENT_DATE,
+        reason TEXT,
+        given_by INTEGER DEFAULT 1,
+        given_date DATE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (student_id) REFERENCES students(id)
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (student_id) REFERENCES students(id),
+        FOREIGN KEY (class_id) REFERENCES classes(id),
+        FOREIGN KEY (group_id) REFERENCES groups(id)
       )
     `)
 
@@ -263,20 +296,106 @@ export class DatabaseManager {
         FOREIGN KEY (reward_id) REFERENCES rewards(id)
       )
     `)
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS class_configs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        class_id INTEGER,
+        rows INTEGER DEFAULT 6,
+        columns INTEGER DEFAULT 8,
+        seat_layout TEXT,
+        numbering_mode TEXT DEFAULT 'row-column',
+        numbering_direction TEXT DEFAULT 'top',
+        point_rules TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (class_id) REFERENCES classes(id)
+      )
+    `)
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS shop_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        icon TEXT,
+        color TEXT,
+        sort_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS shop_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        price INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        image_url TEXT,
+        stock INTEGER DEFAULT -1,
+        is_active BOOLEAN DEFAULT 1,
+        sort_order INTEGER DEFAULT 0,
+        sold_count INTEGER DEFAULT 0,
+        attributes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS shop_exchanges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        item_id INTEGER NOT NULL,
+        class_id INTEGER,
+        quantity INTEGER DEFAULT 1,
+        points_cost INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        notes TEXT,
+        approved_by INTEGER,
+        approved_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (student_id) REFERENCES students(id),
+        FOREIGN KEY (item_id) REFERENCES shop_items(id),
+        FOREIGN KEY (class_id) REFERENCES classes(id)
+      )
+    `)
+
   }
 
   async query(sql: string, params: any[] = []): Promise<any> {
-    const stmt = this.db.prepare(sql)
-    const result = stmt.getAsObject(params)
-    this.saveDatabase()
-    return result
+    try {
+      const stmt = this.db.prepare(sql)
+      if (params && params.length) {
+        stmt.bind(params)
+      }
+      const hasRow = stmt.step()
+      const result = hasRow ? stmt.getAsObject() : null
+      stmt.free()
+      // SELECT 不需要保存数据库，但保持行为一致无伤大雅
+      // this.saveDatabase()
+      return result
+    } catch (error) {
+      console.error('SQL查询错误:', error)
+      console.error('SQL语句:', sql)
+      console.error('参数:', params)
+      throw error
+    }
   }
 
   async run(sql: string, params: any[] = []): Promise<any> {
     try {
       const stmt = this.db.prepare(sql)
-      const result = stmt.run(params)
+      if (params && params.length) {
+        stmt.bind(params)
+      }
+      const result = stmt.run()
       this.saveDatabase()
+      stmt.free()
       return {
         changes: this.db.getRowsModified(),
         lastInsertRowid: result ? result.lastInsertRowid : null
@@ -290,19 +409,41 @@ export class DatabaseManager {
   }
 
   async get(sql: string, params: any[] = []): Promise<any> {
-    const stmt = this.db.prepare(sql)
-    const result = stmt.getAsObject(params)
-    return result
+    try {
+      const stmt = this.db.prepare(sql)
+      if (params && params.length) {
+        stmt.bind(params)
+      }
+      const hasRow = stmt.step()
+      const result = hasRow ? stmt.getAsObject() : null
+      stmt.free()
+      return result
+    } catch (error) {
+      console.error('SQL获取单行错误:', error)
+      console.error('SQL语句:', sql)
+      console.error('参数:', params)
+      throw error
+    }
   }
 
   async all(sql: string, params: any[] = []): Promise<any[]> {
-    const stmt = this.db.prepare(sql)
-    const results = []
-    while (stmt.step()) {
-      results.push(stmt.getAsObject())
+    try {
+      const stmt = this.db.prepare(sql)
+      if (params && params.length) {
+        stmt.bind(params)
+      }
+      const results: any[] = []
+      while (stmt.step()) {
+        results.push(stmt.getAsObject())
+      }
+      stmt.free()
+      return results
+    } catch (error) {
+      console.error('SQL获取多行错误:', error)
+      console.error('SQL语句:', sql)
+      console.error('参数:', params)
+      throw error
     }
-    stmt.free()
-    return results
   }
 
   async selectFirst(table: string, where: Record<string, any>): Promise<any> {

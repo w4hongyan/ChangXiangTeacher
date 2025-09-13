@@ -4,6 +4,14 @@
     <div class="page-header">
       <h2>文档模板中心</h2>
       <div class="header-actions">
+        <el-button type="success" @click="showBatchGenerator = true">
+          <el-icon><Files /></el-icon>
+          批量生成
+        </el-button>
+        <el-button type="warning" @click="showPrintManager = true">
+          <el-icon><Printer /></el-icon>
+          打印管理
+        </el-button>
         <el-button type="primary" @click="showAddDialog = true">
           <el-icon><Plus /></el-icon>
           创建模板
@@ -232,6 +240,31 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 批量生成对话框 -->
+     <el-dialog
+       v-model="showBatchGenerator"
+       title="批量文档生成"
+       width="80%"
+       :close-on-click-modal="false"
+     >
+       <BatchDocumentGenerator
+         :templates="templates"
+         @close="showBatchGenerator = false"
+       />
+     </el-dialog>
+
+     <!-- 打印管理对话框 -->
+     <el-dialog
+       v-model="showPrintManager"
+       title="打印管理中心"
+       width="90%"
+       :close-on-click-modal="false"
+     >
+       <PrintManager
+         @print-completed="handlePrintCompleted"
+       />
+     </el-dialog>
     </div>
   </Layout>
 </template>
@@ -261,6 +294,8 @@ import {
 import Layout from './Layout.vue'
 import DynamicForm from '../components/DynamicForm.vue'
 import RichTextEditor from '../components/RichTextEditor.vue'
+import BatchDocumentGenerator from '../components/BatchDocumentGenerator.vue'
+import PrintManager from '../components/PrintManager.vue'
 import { TemplateVariableParser, type TemplateVariable } from '../utils/templateVariableParser'
 import { DocumentExporter, type ExportFormat, type ExportOptions } from '../utils/documentExporter'
 
@@ -280,6 +315,8 @@ const selectedTemplate = ref<DocumentTemplate | null>(null)
 const showAddDialog = ref(false)
 const showPreviewDialog = ref(false)
 const showGenerateDialog = ref(false)
+const showBatchGenerator = ref(false)
+const showPrintManager = ref(false)
 const editingTemplate = ref<DocumentTemplate | null>(null)
 const previewTemplateData = ref<DocumentTemplate | null>(null)
 const selectedCategory = ref('all')
@@ -654,6 +691,23 @@ const loadTemplates = async () => {
     console.error('加载模板失败:', error)
     ElMessage.error('加载模板失败')
   }
+}
+
+// 处理打印完成事件
+const handlePrintCompleted = (results: Array<{ success: boolean; message: string }>) => {
+  const successCount = results.filter(r => r.success).length
+  const totalCount = results.length
+  
+  if (successCount === totalCount) {
+    ElMessage.success(`所有文档打印完成 (${successCount}/${totalCount})`)
+  } else if (successCount > 0) {
+    ElMessage.warning(`部分文档打印完成 (${successCount}/${totalCount})`)
+  } else {
+    ElMessage.error('所有文档打印失败')
+  }
+  
+  // 可以在这里添加打印统计或日志记录
+  console.log('打印结果:', results)
 }
 
 onMounted(() => {

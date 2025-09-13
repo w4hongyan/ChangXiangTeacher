@@ -44,6 +44,11 @@ export const useStudentStore = defineStore('student', () => {
     }
   }
 
+  // 兼容别名：getStudents -> fetchStudents
+  async function getStudents(params?: StudentQueryParams) {
+    return fetchStudents(params)
+  }
+
   // 获取班级列表
   async function fetchClasses() {
     loading.value = true
@@ -62,6 +67,11 @@ export const useStudentStore = defineStore('student', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // 兼容别名：getClasses -> fetchClasses
+  async function getClasses() {
+    return fetchClasses()
   }
 
   // 创建学生
@@ -228,7 +238,10 @@ export const useStudentStore = defineStore('student', () => {
     pageSize: computed(() => pageSize.value),
     
     fetchStudents,
+    // 兼容导出
+    getStudents,
     fetchClasses,
+    getClasses,
     createStudent,
     updateStudent,
     deleteStudent,
