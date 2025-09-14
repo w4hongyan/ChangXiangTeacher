@@ -84,7 +84,7 @@
               <div class="message-text" v-html="formatMessage(message.content)"></div>
               <div class="message-actions" v-if="message.role === 'assistant'">
                 <el-button size="small" text @click="copyMessage(message.content)">
-                  <el-icon><Copy /></el-icon>
+                  <el-icon><DocumentCopy /></el-icon>
                   复制
                 </el-button>
                 <el-button size="small" text @click="regenerateResponse(index)" :loading="isLoading">
@@ -631,7 +631,7 @@
                       保存
                     </el-button>
                     <el-button size="small" @click="copyScreenshot">
-                      <el-icon><Copy /></el-icon>
+                      <el-icon><DocumentCopy /></el-icon>
                       复制
                     </el-button>
                   </div>
@@ -782,7 +782,7 @@
                       下载
                     </el-button>
                     <el-button size="small" @click="copyQRCodeImage">
-                      <el-icon><Copy /></el-icon>
+                      <el-icon><DocumentCopy /></el-icon>
                       复制图片
                     </el-button>
                   </div>
@@ -1228,9 +1228,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { School, Reading, Tools, Notebook, Trophy, Star, Link, FolderOpened, Camera, VideoCamera, VideoPause, Grid, Picture, Plus, Edit, Download, Copy, Refresh, Delete, Document, UploadFilled, User, Calendar, ChatDotRound, DataAnalysis, QuestionFilled, DocumentChecked, Search } from '@element-plus/icons-vue'
+import { School, Reading, Tools, Notebook, Trophy, Star, Link, FolderOpened, Camera, VideoCamera, VideoPause, Grid, Picture, Plus, Edit, Download, DocumentCopy, Refresh, Delete, Document, UploadFilled, User, Calendar, ChatDotRound, DataAnalysis, QuestionFilled, DocumentChecked, Search } from '@element-plus/icons-vue'
 import Layout from './Layout.vue'
 
 // 响应式数据
