@@ -279,18 +279,45 @@ export function setupEnhancedGradeHandlers(dbManager: DatabaseManager) {
         overallPerformance = '需要努力'
       }
       
+      // 转换为前端期望的数据格式
+      const exam_records = subjectGrades.map(grade => ({
+        exam_name: `${grade.subject}考试`,
+        exam_date: new Date().toISOString().split('T')[0], // 使用当前日期作为默认值
+        score: grade.score,
+        rank: grade.class_rank,
+        total_students: grade.total_students,
+        subject_avg: averageScore, // 使用总平均分作为科目平均分
+        class_avg: averageScore
+      }))
+
+      // 分析整体趋势
+      let overall_trend: 'improving' | 'declining' | 'stable' = 'stable'
+      let recent_performance: 'excellent' | 'good' | 'average' | 'poor' = 'average'
+      
+      if (averageScore >= 90) {
+        recent_performance = 'excellent'
+      } else if (averageScore >= 80) {
+        recent_performance = 'good'
+      } else if (averageScore >= 70) {
+        recent_performance = 'average'
+      } else {
+        recent_performance = 'poor'
+      }
+
       const analysis = {
-        student_name: studentInfo.name,
-        student_number: studentInfo.student_id,
-        class_name: studentInfo.class_name,
-        semester,
-        year,
-        subject_grades: subjectGrades,
-        overall_performance: overallPerformance,
-        average_score: Math.round(averageScore * 100) / 100,
-        strengths,
-        weaknesses,
-        suggestions
+        student_info: {
+          student_id: studentInfo.id.toString(),
+          student_name: studentInfo.name,
+          student_number: studentInfo.student_id
+        },
+        exam_records,
+        trend_analysis: {
+          overall_trend,
+          recent_performance,
+          strengths,
+          areas_for_improvement: weaknesses
+        },
+        recommendations: suggestions
       }
       
       // 保存报告到数据库
@@ -305,7 +332,7 @@ export function setupEnhancedGradeHandlers(dbManager: DatabaseManager) {
         '个人报告',
         semester,
         year,
-        'student_detail',
+        'individual',
         JSON.stringify(analysis)
       ])
       

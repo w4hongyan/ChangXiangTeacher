@@ -120,6 +120,15 @@ declare global {
         today: (classId: number) => Promise<any>
         export: (params?: any) => Promise<any>
       }
+      ai: {
+        getConfig: () => Promise<any>
+        updateConfig: (config: any) => Promise<any>
+        getSessions: (type?: string) => Promise<any>
+        createSession: (title: string, type?: string) => Promise<any>
+        getSessionMessages: (sessionId: string) => Promise<any>
+        deleteSession: (sessionId: string) => Promise<any>
+        chat: (sessionId: string, message: string, type?: string) => Promise<any>
+      }
       backup: {
          list: (options?: any) => Promise<any>
          stats: () => Promise<any>
@@ -266,6 +275,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     stats: (params?: any) => ipcRenderer.invoke('attendance:stats', params),
     today: (classId: number) => ipcRenderer.invoke('attendance:today', classId),
     export: (params?: any) => ipcRenderer.invoke('attendance:export', params)
+  },
+  ai: {
+    getConfig: () => ipcRenderer.invoke('ai:getConfig'),
+    updateConfig: (config: any) => ipcRenderer.invoke('ai:updateConfig', config),
+    getSessions: (type?: string) => ipcRenderer.invoke('ai:getSessions', type),
+    createSession: (title: string, type?: string) => ipcRenderer.invoke('ai:createSession', title, type),
+    getSessionMessages: (sessionId: string) => ipcRenderer.invoke('ai:getSessionMessages', sessionId),
+    deleteSession: (sessionId: string) => ipcRenderer.invoke('ai:deleteSession', sessionId),
+    chat: (sessionId: string, message: string, type?: string) => ipcRenderer.invoke('ai:chat', sessionId, message, type)
   },
   backup: {
      list: (options?: any) => ipcRenderer.invoke('backup:list', options),

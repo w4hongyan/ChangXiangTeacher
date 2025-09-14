@@ -73,6 +73,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '班级点名' }
   },
   {
+    path: '/homework',
+    name: 'Homework',
+    component: () => import('../views/Homework.vue'),
+    meta: { title: '作业管理' }
+  },
+  {
+    path: '/homework/:id/submissions',
+    name: 'HomeworkSubmissions',
+    component: () => import('../views/HomeworkSubmissions.vue'),
+    meta: { title: '作业提交管理' }
+  },
+  {
+    path: '/ai-assistant',
+    name: 'AIAssistant',
+    component: () => import('../views/AIAssistant.vue'),
+    meta: { title: 'AI智能助手' }
+  },
+  {
     path: '/lottery',
     name: 'Lottery',
     component: () => import('../views/Lottery.vue'),

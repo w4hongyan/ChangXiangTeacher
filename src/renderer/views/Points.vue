@@ -177,6 +177,10 @@
         </el-card>
       </el-tab-pane>
       
+      <!-- 积分发放管理标签页 -->
+      <el-tab-pane label="积分发放管理" name="management">
+        <PointsManagement />
+      </el-tab-pane>
 
     </el-tabs>
 
@@ -242,6 +246,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Layout from './Layout.vue'
+import PointsManagement from '../components/shop/PointsManagement.vue'
 import { usePointStore } from '../stores/point'
 import { useStudentStore } from '../stores/student'
 import type { PointFormData, PointRule } from '../types/point'

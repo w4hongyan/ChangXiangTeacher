@@ -51,6 +51,10 @@
           <el-icon><UserFilled /></el-icon>
           <template #title>班级点名</template>
         </el-menu-item>
+        <el-menu-item index="/homework">
+          <el-icon><Document /></el-icon>
+          <template #title>作业管理</template>
+        </el-menu-item>
         <el-menu-item index="/lottery">
           <el-icon><Operation /></el-icon>
           <template #title>课堂抽签</template>
@@ -72,6 +76,12 @@
           <template #title>积分商城</template>
         </el-menu-item>
       </el-sub-menu>
+
+      <!-- AI智能助手 -->
+      <el-menu-item index="/ai-assistant">
+          <el-icon><ChatDotRound /></el-icon>
+          <template #title>AI智能助手</template>
+        </el-menu-item>
 
       <!-- 系统功能 -->
       <el-sub-menu index="system">
@@ -140,7 +150,8 @@ import {
   FolderOpened,
   Upload,
   Operation,
-  DataAnalysis
+  DataAnalysis,
+  ChatDotRound
 } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../stores/settings'
 
