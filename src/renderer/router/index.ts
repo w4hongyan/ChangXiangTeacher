@@ -59,6 +59,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/quick-points',
+    name: 'QuickPoints',
+    component: () => import('../views/QuickPoints.vue'),
+    meta: {
+      title: '快速积分'
+    }
+  },
+  {
     path: '/shop',
     name: 'Shop',
     component: () => import('../views/Shop.vue'),

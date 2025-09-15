@@ -29,6 +29,11 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'index.html')
+        },
+        output: {
+          manualChunks: {
+            echarts: ['echarts']
+          }
         }
       }
     },
@@ -39,6 +44,9 @@ export default defineConfig({
         '@main': resolve(__dirname, 'src/main'),
         '@preload': resolve(__dirname, 'src/preload')
       }
+    },
+    optimizeDeps: {
+      include: ['echarts']
     },
     server: {
       port: 8080,

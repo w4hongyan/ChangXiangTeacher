@@ -33,6 +33,7 @@
             <el-button size="small" @click="loadTemplate('numbers')">1234</el-button>
             <el-button size="small" @click="loadTemplate('weekdays')">星期</el-button>
             <el-button size="small" @click="loadTemplate('colors')">颜色</el-button>
+            <el-button size="small" @click="loadTemplate('cities')">城市</el-button>
           </div>
         </div>
         <div class="text-config">
@@ -284,7 +285,8 @@ const templates = {
   abcd: ['A', 'B', 'C', 'D'],
   numbers: ['1', '2', '3', '4'],
   weekdays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-  colors: ['红色', '蓝色', '绿色', '黄色', '紫色', '橙色', '粉色', '黑色']
+  colors: ['红色', '蓝色', '绿色', '黄色', '紫色', '橙色', '粉色', '黑色'],
+  cities: ['北京', '上海', '广州', '哈尔滨']
 }
 
 const parseTextOptions = () => {
