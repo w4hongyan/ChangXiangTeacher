@@ -2,11 +2,15 @@
   <el-dialog
     v-model="visible"
     title="自定义抽签"
-    width="700px"
+    width="900px"
     :before-close="handleClose"
     class="custom-lottery-dialog"
   >
     <div class="dialog-content">
+      <!-- 标签页切换 -->
+      <el-tabs v-model="activeTab" class="lottery-tabs">
+        <el-tab-pane label="抽签设置" name="lottery">
+          <div class="lottery-content">
       <!-- 抽签模式选择 -->
       <div class="mode-selector">
         <el-radio-group v-model="lotteryMode" @change="onModeChange">
@@ -128,7 +132,7 @@
         <div class="result-display" :class="{ 'animating': isAnimating }">
           <div class="result-content">
             <div v-if="!lotteryResult.length" class="placeholder">
-              <el-icon class="placeholder-icon"><Dice /></el-icon>
+              <el-icon class="placeholder-icon"><Operation /></el-icon>
               <p>点击开始抽签</p>
             </div>
             <div v-else class="results">
@@ -160,16 +164,7 @@
             {{ isAnimating ? '抽签中...' : '开始抽签' }}
           </el-button>
           
-          <el-button
-            v-if="lotteryResult.length > 0"
-            type="success"
-            size="large"
-            @click="confirmResult"
-            :disabled="isAnimating"
-          >
-            <el-icon><Check /></el-icon>
-            确认结果
-          </el-button>
+          <!-- 已自动记录，无需确认按钮 -->
           
           <el-button
             v-if="lotteryResult.length > 0"
@@ -181,7 +176,62 @@
             重新抽签
           </el-button>
         </div>
-      </div>
+        
+        <!-- 最近抽签记录 -->
+        <div class="recent-records" v-show="recentRecords.length > 0">
+          <div class="records-header">
+            <span>最近抽签记录</span>
+            <el-button size="small" text @click="clearRecentRecords">
+              <el-icon><Delete /></el-icon>
+              清空记录
+            </el-button>
+          </div>
+          <div class="records-list">
+            <div 
+              v-for="(record, index) in recentRecords.slice(0, 5)" 
+              :key="index"
+              class="record-item"
+            >
+              <div class="record-info">
+                <el-tag :type="getRecordTypeColor(record.mode)" size="small">
+                  {{ getRecordModeText(record.mode) }}
+                </el-tag>
+                <span class="record-time">{{ formatTime(record.timestamp) }}</span>
+              </div>
+              <div class="record-result">
+                <el-tag 
+                  v-for="(result, idx) in record.results" 
+                  :key="idx"
+                  size="small"
+                  class="result-tag"
+                >
+                  {{ result }}
+                </el-tag>
+              </div>
+              <el-button 
+                size="small" 
+                text 
+                @click="replayRecord(record)"
+                class="replay-btn"
+              >
+                <el-icon><Refresh /></el-icon>
+                重播
+              </el-button>
+            </div>
+          </div>
+        </div>
+        
+          </div>
+        </div>
+        </el-tab-pane>
+        
+        <el-tab-pane label="历史记录" name="history">
+          <CustomLotteryHistory 
+            ref="historyRef"
+            @replay="handleReplay"
+          />
+        </el-tab-pane>
+      </el-tabs>
     </div>
 
     <template #footer>
@@ -196,7 +246,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Operation, Check, Refresh, RefreshRight } from '@element-plus/icons-vue'
+import { Operation, Refresh, RefreshRight, Delete } from '@element-plus/icons-vue'
+import CustomLotteryHistory from './CustomLotteryHistory.vue'
 
 interface Student {
   id: number
@@ -210,6 +261,15 @@ interface Student {
 interface Class {
   id: number
   name: string
+}
+
+interface LotteryRecord {
+  id: string
+  mode: 'text' | 'number' | 'student'
+  timestamp: number
+  results: string[]
+  config: any
+  options?: string[]
 }
 
 const props = defineProps<{
@@ -226,11 +286,15 @@ const visible = computed({
   set: (value) => emit('update:modelValue', value)
 })
 
+const activeTab = ref('lottery')
+const historyRef = ref<InstanceType<typeof CustomLotteryHistory>>()
+
 const lotteryMode = ref<'text' | 'number' | 'student'>('text')
 const textInput = ref('')
 const textOptions = ref<string[]>([])
 const isAnimating = ref(false)
 const lotteryResult = ref<string[]>([])
+const recentRecords = ref<LotteryRecord[]>([])
 
 // 文本抽签配置
 const textConfig = ref({
@@ -393,6 +457,21 @@ const startLottery = () => {
         
         const resultText = lotteryResult.value.join(', ')
         ElMessage.success(`抽签结果：${resultText}`)
+        
+        // 自动记录抽签结果
+        if (lotteryResult.value.length > 0) {
+          // 保存到通用记录（用于主页显示）
+          emit('record', {
+            type: '自定义抽签',
+            result: resultText
+          })
+          
+          // 保存到详细历史记录
+          saveToHistory()
+          
+          // 保存到最近记录
+          addToRecentRecords()
+        }
       }, 300)
     }
   }, 150)
@@ -442,10 +521,18 @@ const getRandomResults = (): string[] => {
 const confirmResult = () => {
   if (lotteryResult.value.length > 0) {
     const resultText = lotteryResult.value.join(', ')
+    
+    // 保存到通用记录（用于主页显示）
     emit('record', {
       type: '自定义抽签',
       result: resultText
     })
+    
+    // 保存到详细历史记录
+    saveToHistory()
+    
+    // 保存到最近记录
+    addToRecentRecords()
     
     ElMessage.success('结果已记录')
     handleClose()
@@ -482,8 +569,102 @@ const getOptionTagType = (index: number) => {
   return types[index % types.length]
 }
 
+const saveToHistory = () => {
+  if (!historyRef.value || lotteryResult.value.length === 0) return
+  
+  let config: any = {}
+  let options: string[] = []
+  let className: string | undefined
+  
+  switch (lotteryMode.value) {
+    case 'text':
+      config = {
+        count: textConfig.value.count,
+        allowDuplicate: textConfig.value.allowDuplicate
+      }
+      options = [...textOptions.value]
+      break
+    case 'number':
+      config = {
+        count: numberConfig.value.count,
+        allowDuplicate: numberConfig.value.allowDuplicate,
+        min: numberConfig.value.min,
+        max: numberConfig.value.max
+      }
+      for (let i = numberConfig.value.min; i <= numberConfig.value.max; i++) {
+        options.push(i.toString())
+      }
+      break
+    case 'student':
+      config = {
+        count: studentConfig.value.count,
+        allowDuplicate: studentConfig.value.allowDuplicate
+      }
+      options = filteredStudents.value.map(s => s.name)
+      className = classes.value.find(c => c.id === selectedClassId.value)?.name
+      break
+  }
+  
+  const historyRecord = {
+    mode: lotteryMode.value,
+    options,
+    results: [...lotteryResult.value],
+    config,
+    className
+  }
+  
+  historyRef.value.addRecord(historyRecord)
+}
+
+const handleReplay = (record: any) => {
+  // 切换到抽签设置标签页
+  activeTab.value = 'lottery'
+  
+  // 根据记录恢复抽签设置
+  lotteryMode.value = record.mode
+  
+  switch (record.mode) {
+    case 'text':
+      textOptions.value = [...record.options]
+      textInput.value = record.options.join('\n')
+      textConfig.value = {
+        count: record.config.count,
+        allowDuplicate: record.config.allowDuplicate
+      }
+      break
+    case 'number':
+      numberConfig.value = {
+        min: record.config.min,
+        max: record.config.max,
+        count: record.config.count,
+        allowDuplicate: record.config.allowDuplicate
+      }
+      break
+    case 'student':
+      studentConfig.value = {
+        count: record.config.count,
+        allowDuplicate: record.config.allowDuplicate
+      }
+      // 如果有班级信息，尝试选择对应班级
+      if (record.className) {
+        const targetClass = classes.value.find(c => c.name === record.className)
+        if (targetClass) {
+          selectedClassId.value = targetClass.id
+          loadStudents()
+        }
+      }
+      break
+  }
+  
+  // 重置抽签结果
+  lotteryResult.value = []
+  
+  ElMessage.success('已恢复历史抽签设置，可以重新开始抽签')
+}
+
 const handleClose = () => {
   visible.value = false
+  activeTab.value = 'lottery' // 重置到抽签标签页
   resetLottery()
 }
 
@@ -500,9 +681,163 @@ watch(excludeAbsent, () => {
   filterStudents()
 })
 
+// 最近记录相关方法
+const addToRecentRecords = () => {
+  if (lotteryResult.value.length === 0) return
+  
+  let config: any = {}
+  let options: string[] = []
+  
+  switch (lotteryMode.value) {
+    case 'text':
+      config = {
+        count: textConfig.value.count,
+        allowDuplicate: textConfig.value.allowDuplicate
+      }
+      options = [...textOptions.value]
+      break
+    case 'number':
+      config = {
+        count: numberConfig.value.count,
+        allowDuplicate: numberConfig.value.allowDuplicate,
+        min: numberConfig.value.min,
+        max: numberConfig.value.max
+      }
+      for (let i = numberConfig.value.min; i <= numberConfig.value.max; i++) {
+        options.push(i.toString())
+      }
+      break
+    case 'student':
+      config = {
+        count: studentConfig.value.count,
+        allowDuplicate: studentConfig.value.allowDuplicate
+      }
+      options = filteredStudents.value.map(s => s.name)
+      break
+  }
+  
+  const record: LotteryRecord = {
+    id: Date.now().toString(),
+    mode: lotteryMode.value,
+    timestamp: Date.now(),
+    results: [...lotteryResult.value],
+    config,
+    options
+  }
+  
+  recentRecords.value.unshift(record)
+  
+  // 只保留最近10条记录
+  if (recentRecords.value.length > 10) {
+    recentRecords.value = recentRecords.value.slice(0, 10)
+  }
+  
+  // 保存到localStorage
+  localStorage.setItem('custom-lottery-recent-records', JSON.stringify(recentRecords.value))
+}
+
+const clearRecentRecords = async () => {
+  try {
+    await ElMessageBox.confirm('确定要清空所有最近记录吗？', '确认清空', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    recentRecords.value = []
+    localStorage.removeItem('custom-lottery-recent-records')
+    ElMessage.success('记录已清空')
+  } catch {
+    // 用户取消
+  }
+}
+
+const replayRecord = (record: LotteryRecord) => {
+  // 根据记录恢复抽签设置
+  lotteryMode.value = record.mode
+  
+  switch (record.mode) {
+    case 'text':
+      textOptions.value = [...record.options || []]
+      textInput.value = (record.options || []).join('\n')
+      textConfig.value = {
+        count: record.config.count,
+        allowDuplicate: record.config.allowDuplicate
+      }
+      break
+    case 'number':
+      numberConfig.value = {
+        min: record.config.min,
+        max: record.config.max,
+        count: record.config.count,
+        allowDuplicate: record.config.allowDuplicate
+      }
+      break
+    case 'student':
+      studentConfig.value = {
+        count: record.config.count,
+        allowDuplicate: record.config.allowDuplicate
+      }
+      break
+  }
+  
+  // 重置抽签结果
+  lotteryResult.value = []
+  
+  ElMessage.success('已恢复历史抽签设置，可以重新开始抽签')
+}
+
+const getRecordTypeColor = (mode: string) => {
+  switch (mode) {
+    case 'text': return 'primary'
+    case 'number': return 'success'
+    case 'student': return 'warning'
+    default: return 'info'
+  }
+}
+
+const getRecordModeText = (mode: string) => {
+  switch (mode) {
+    case 'text': return '文本抽签'
+    case 'number': return '数字抽签'
+    case 'student': return '学生抽签'
+    default: return '未知'
+  }
+}
+
+const formatTime = (timestamp: number) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  
+  if (diff < 60000) { // 1分钟内
+    return '刚刚'
+  } else if (diff < 3600000) { // 1小时内
+    return `${Math.floor(diff / 60000)}分钟前`
+  } else if (diff < 86400000) { // 24小时内
+    return `${Math.floor(diff / 3600000)}小时前`
+  } else {
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+}
+
+// 加载最近记录
+const loadRecentRecords = () => {
+  try {
+    const saved = localStorage.getItem('custom-lottery-recent-records')
+    if (saved) {
+      recentRecords.value = JSON.parse(saved)
+    }
+  } catch (error) {
+    console.error('加载最近记录失败:', error)
+  }
+}
+
 onMounted(() => {
   // 加载默认模板
   loadTemplate('yesno')
+  // 加载最近记录
+  loadRecentRecords()
 })
 </script>
 
@@ -700,5 +1035,146 @@ onMounted(() => {
 :global(.dark-theme) .text-config {
   background-color: #2d3748;
   border-color: #4a5568;
+}
+
+/* 标签页样式 */
+.lottery-tabs {
+  margin-top: -16px;
+}
+
+.lottery-tabs :deep(.el-tabs__header) {
+  margin-bottom: 20px;
+}
+
+.lottery-tabs :deep(.el-tabs__nav-wrap) {
+  padding: 0 20px;
+}
+
+.lottery-content {
+  padding: 0 4px;
+}
+
+/* 最近记录样式 */
+.recent-records {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.records-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+  transition: all 0.2s;
+}
+
+.record-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+}
+
+.record-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.record-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.record-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+  margin: 0 16px;
+}
+
+.record-result .result-tag {
+  margin: 0;
+}
+
+.replay-btn {
+  flex: 0 0 auto;
+}
+
+/* 暗色主题 */
+.dark-theme .recent-records {
+  background-color: #2d3748;
+  border-color: #4a5568;
+}
+
+.dark-theme .records-header {
+  color: #e5eaf3;
+}
+
+.dark-theme .record-item {
+  background: #1a202c;
+  border-color: #4a5568;
+}
+
+.dark-theme .record-item:hover {
+  border-color: #409eff;
+  background: #2d3748;
+}
+
+.dark-theme .record-time {
+  color: #a3a6ad;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .lottery-tabs :deep(.el-tabs__nav-wrap) {
+    padding: 0 8px;
+  }
+  
+  .lottery-content {
+    padding: 0;
+  }
+  
+  .recent-records {
+    margin: 20px 0 0 0;
+    padding: 16px;
+  }
+  
+  .record-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .record-result {
+    margin: 0;
+    justify-content: flex-start;
+  }
+  
+  .replay-btn {
+    align-self: flex-end;
+  }
 }
 </style>

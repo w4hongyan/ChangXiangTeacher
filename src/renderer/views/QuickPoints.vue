@@ -54,7 +54,8 @@
         <div class="action-buttons">
           <button 
             @click="addPoint(group)"
-            @touchstart.prevent="handleButtonTouch(group, 'add')"
+            @touchstart="handleButtonTouch(group, 'add')"
+            @touchend="handleTouchButtonEnd(group, 'add')"
             class="btn-add touch-btn"
             :disabled="loading"
           >
@@ -66,7 +67,8 @@
           
           <button 
             @click="subtractPoint(group)"
-            @touchstart.prevent="handleButtonTouch(group, 'subtract')"
+            @touchstart="handleButtonTouch(group, 'subtract')"
+            @touchend="handleTouchButtonEnd(group, 'subtract')"
             class="btn-subtract touch-btn"
             :disabled="loading || group.points <= 0"
           >
@@ -100,15 +102,15 @@
     <!-- 全局操作按钮 - 重新设计布局 -->
     <div class="global-actions-redesigned">
       <div class="action-buttons-row">
-        <button class="btn-global-new btn-add-all-new touch-btn" @click="addAllPoints" @touchstart="handleButtonTouch('add')" @touchend="handleButtonTouch('')">
+        <button class="btn-global-new btn-add-all-new touch-btn" @click="addAllPoints" @touchstart="handleGlobalButtonTouch('add')" @touchend="handleGlobalButtonEnd('add')">
           <div class="btn-icon-new">➕</div>
           <span class="btn-text-new">全部+1</span>
         </button>
-        <button class="btn-global-new btn-subtract-all-new touch-btn" @click="subtractAllPoints" @touchstart="handleButtonTouch('subtract')" @touchend="handleButtonTouch('')">
+        <button class="btn-global-new btn-subtract-all-new touch-btn" @click="subtractAllPoints" @touchstart="handleGlobalButtonTouch('subtract')" @touchend="handleGlobalButtonEnd('subtract')">
           <div class="btn-icon-new">➖</div>
           <span class="btn-text-new">全部-1</span>
         </button>
-        <button class="btn-reset-new touch-btn" @click="resetAllPoints" @touchstart="handleButtonTouch('reset')" @touchend="handleButtonTouch('')">
+        <button class="btn-reset-new touch-btn" @click="resetAllPoints" @touchstart="handleGlobalButtonTouch('reset')" @touchend="handleGlobalButtonEnd('reset')">
           <div class="btn-icon-new">🔄</div>
           <span class="btn-text-new">重置所有积分</span>
         </button>
@@ -126,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import Layout from './Layout.vue'
 
 interface Student {
@@ -150,21 +152,66 @@ interface Effect {
 const groupCount = ref(4)
 const groups = ref([])
 
-// 生成小组数据
-const generateGroups = () => {
+// 数据持久化相关
+const STORAGE_KEY = 'quickPoints_data'
+
+// 保存数据到localStorage
+const saveData = () => {
+  const data = {
+    groupCount: groupCount.value,
+    groups: groups.value.map(group => ({
+      id: group.id,
+      name: group.name,
+      points: group.points
+    }))
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+// 从localStorage加载数据
+const loadData = () => {
+  try {
+    const savedData = localStorage.getItem(STORAGE_KEY)
+    if (savedData) {
+      const data = JSON.parse(savedData)
+      groupCount.value = data.groupCount || 4
+      
+      // 恢复小组数据
+      if (data.groups && data.groups.length > 0) {
+        generateGroupsWithData(data.groups)
+        return true
+      }
+    }
+  } catch (error) {
+    console.error('加载数据失败:', error)
+  }
+  return false
+}
+
+// 生成小组数据（带已保存的积分数据）
+const generateGroupsWithData = (savedGroups = null) => {
   const groupNames = ['第一组', '第二组', '第三组', '第四组', '第五组', '第六组', '第七组', '第八组']
-  groups.value = Array.from({ length: groupCount.value }, (_, index) => ({
-    id: index + 1,
-    name: groupNames[index],
-    points: 0,
-    animating: false,
-    addRipple: false,
-     subtractRipple: false,
-     addTouch: false,
-     subtractTouch: false,
-     effects: [],
-     pulseEffect: false
-  }))
+  groups.value = Array.from({ length: groupCount.value }, (_, index) => {
+    const savedGroup = savedGroups ? savedGroups.find(g => g.id === index + 1) : null
+    return {
+      id: index + 1,
+      name: groupNames[index],
+      points: savedGroup ? savedGroup.points : 0,
+      animating: false,
+      addRipple: false,
+      subtractRipple: false,
+      addTouch: false,
+      subtractTouch: false,
+      effects: [],
+      pulseEffect: false
+    }
+  })
+}
+
+// 生成小组数据（原函数保持兼容）
+const generateGroups = () => {
+  generateGroupsWithData()
+  saveData() // 生成新数据时保存
 }
 
 // 增加小组数量
@@ -205,6 +252,8 @@ const addPoint = (group: any) => {
     group.animating = false
   }, 600)
 
+  // 保存数据
+  saveData()
   showToastMessage(`${group.name} +1分 🌸`)
 }
 
@@ -231,6 +280,8 @@ const subtractPoint = (group: any) => {
     group.animating = false
   }, 600)
 
+  // 保存数据
+  saveData()
   showToastMessage(`${group.name} -1分 💔`)
 }
 
@@ -273,11 +324,24 @@ const resetAllPoints = () => {
     group.subtractRipple = false
     group.effects = []
   })
+  // 保存数据
+  saveData()
   showToastMessage('所有积分已重置！')
 }
 
-// 初始化
-generateGroups()
+// 组件挂载时加载数据
+onMounted(() => {
+  // 尝试加载已保存的数据
+  if (!loadData()) {
+    // 如果没有保存的数据，则生成默认数据
+    generateGroups()
+  }
+})
+
+// 监听小组数量变化，自动保存
+watch(groupCount, () => {
+  saveData()
+})
 
 // 全部加一分
 const addAllPoints = () => {
@@ -288,6 +352,8 @@ const addAllPoints = () => {
       group.animating = false
     }, 600)
   })
+  // 保存数据
+  saveData()
   showToastMessage('全部小组 +1分！🌸')
 }
 
@@ -302,6 +368,8 @@ const subtractAllPoints = () => {
       }, 600)
     }
   })
+  // 保存数据
+  saveData()
   showToastMessage('全部小组 -1分！💔')
  }
 
@@ -316,18 +384,43 @@ const subtractAllPoints = () => {
    }, 200)
  }
 
+ // 个人按钮触摸开始
  const handleButtonTouch = (group, type) => {
    if (type === 'add') {
      group.addTouch = true
-     setTimeout(() => {
-       group.addTouch = false
-     }, 300)
-   } else {
+   } else if (type === 'subtract') {
      group.subtractTouch = true
-     setTimeout(() => {
-       group.subtractTouch = false
-     }, 300)
    }
+ }
+
+ // 个人按钮触摸结束
+ const handleTouchButtonEnd = (group, type) => {
+   setTimeout(() => {
+     if (type === 'add') {
+       group.addTouch = false
+     } else if (type === 'subtract') {
+       group.subtractTouch = false
+     }
+   }, 300)
+ }
+
+ // 全局按钮触摸状态
+ const globalButtonTouch = ref({
+   add: false,
+   subtract: false,
+   reset: false
+ })
+
+ // 全局按钮触摸开始
+ const handleGlobalButtonTouch = (type) => {
+   globalButtonTouch.value[type] = true
+ }
+
+ // 全局按钮触摸结束
+ const handleGlobalButtonEnd = (type) => {
+   setTimeout(() => {
+     globalButtonTouch.value[type] = false
+   }, 300)
  }
 </script>
 
@@ -1086,19 +1179,69 @@ const subtractAllPoints = () => {
   }
 }
 
+/* 触摸反馈效果 */
+.touch-feedback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: inherit;
+  pointer-events: none;
+  animation: touchFeedback 0.3s ease-out;
+}
+
+@keyframes touchFeedback {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
 /* 触摸设备优化 */
 @media (hover: none) and (pointer: coarse) {
   .group-card:hover {
     transform: none;
   }
 
+  .touch-btn {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
   .touch-btn:hover {
     transform: none;
+  }
+
+  .touch-btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
   }
 
   .count-btn:hover:not(:disabled) {
     transform: none;
     background: rgba(255, 255, 255, 0.2);
+  }
+
+  .count-btn:active:not(:disabled) {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+
+  .btn-global-new:active,
+  .btn-reset-new:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
   }
 
   .btn-global:hover {
