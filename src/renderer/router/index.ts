@@ -99,6 +99,48 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'AI智能助手' }
   },
   {
+    path: '/ai/qa',
+    name: 'QAAssistant',
+    component: () => import('../views/QAAssistant.vue'),
+    meta: { title: '教学问答' }
+  },
+  {
+    path: '/ai/lesson-prep',
+    name: 'LessonPrepAssistant',
+    component: () => import('../views/LessonPrepAssistant.vue'),
+    meta: { title: '备课助手' }
+  },
+  {
+    path: '/ai/essay-grading',
+    name: 'EssayGradingAssistant',
+    component: () => import('../views/EssayGradingAssistant.vue'),
+    meta: { title: '作文批改' }
+  },
+  {
+    path: '/ai/resources',
+    name: 'EducationResourcesAssistant',
+    component: () => import('../views/EducationResourcesAssistant.vue'),
+    meta: { title: '教育资源' }
+  },
+  {
+    path: '/ai/multimedia',
+    name: 'MultimediaToolsAssistant',
+    component: () => import('../views/MultimediaToolsAssistant.vue'),
+    meta: { title: '多媒体工具' }
+  },
+  {
+    path: '/ai/schedule',
+    name: 'ScheduleAssistant',
+    component: () => import('../views/ScheduleAssistant.vue'),
+    meta: { title: '日程提醒' }
+  },
+  {
+    path: '/ai/ppt',
+    name: 'AIPPTAssistant',
+    component: () => import('../views/AIPPTAssistant.vue'),
+    meta: { title: 'AI PPT助手' }
+  },
+  {
     path: '/lottery',
     name: 'Lottery',
     component: () => import('../views/Lottery.vue'),

@@ -79,6 +79,78 @@
           </el-form>
         </el-card>
         
+        <!-- AI服务设置 -->
+        <el-card class="setting-card">
+          <template #header>
+            <div class="card-header">
+              <span>AI服务设置</span>
+              <el-button type="primary" @click="saveAISettings">保存设置</el-button>
+            </div>
+          </template>
+          
+          <el-form :model="aiSettings" label-width="120px" class="settings-form">
+            <el-form-item label="智谱AI密钥">
+              <el-input
+                v-model="aiSettings.zhipuApiKey"
+                type="password"
+                placeholder="请输入智谱AI的API密钥"
+                show-password
+                clearable
+              />
+              <div class="setting-tip">
+                <el-text type="info" size="small">
+                  用于AI PPT生成功能，请前往 
+                  <el-link href="https://www.bigmodel.cn/" target="_blank" type="primary">智谱AI官网</el-link> 
+                  获取API密钥
+                </el-text>
+              </div>
+            </el-form-item>
+            
+            <el-form-item label="API基础URL">
+              <el-input
+                v-model="aiSettings.baseURL"
+                placeholder="API基础URL（可选，使用默认值）"
+                clearable
+              />
+              <div class="setting-tip">
+                <el-text type="info" size="small">
+                  默认：https://open.bigmodel.cn/api/paas/v4/chat/completions
+                </el-text>
+              </div>
+            </el-form-item>
+            
+            <el-form-item label="AI模型">
+              <el-select v-model="aiSettings.model" placeholder="选择AI模型">
+                <el-option label="GLM-4-Plus（推荐）" value="glm-4-plus" />
+                <el-option label="GLM-4" value="glm-4" />
+                <el-option label="GLM-4-Air" value="glm-4-air" />
+                <el-option label="GLM-4-Flash" value="glm-4-flash" />
+              </el-select>
+              <div class="setting-tip">
+                <el-text type="info" size="small">
+                  GLM-4-Plus提供最佳的生成质量，GLM-4-Flash响应更快
+                </el-text>
+              </div>
+            </el-form-item>
+            
+            <el-form-item label="连接测试">
+              <el-button 
+                type="success" 
+                @click="testAIConnection" 
+                :loading="testingConnection"
+                :disabled="!aiSettings.zhipuApiKey"
+              >
+                {{ testingConnection ? '测试中...' : '测试连接' }}
+              </el-button>
+              <div class="setting-tip">
+                <el-text type="info" size="small">
+                  测试API密钥是否有效以及网络连接是否正常
+                </el-text>
+              </div>
+            </el-form-item>
+          </el-form>
+        </el-card>
+        
         <!-- 其他设置 -->
         <el-card class="setting-card">
           <template #header>
@@ -104,9 +176,26 @@ import { ElMessage } from 'element-plus'
 import Layout from './Layout.vue'
 import { useSettingsStore, type TimePeriod, type ScheduleSettings } from '../stores/settings'
 
+// AI服务配置接口
+interface AISettings {
+  zhipuApiKey: string
+  baseURL: string
+  model: string
+}
+
 // 使用设置store
 const settingsStore = useSettingsStore()
 const scheduleSettings = reactive<ScheduleSettings>({ ...settingsStore.scheduleSettings })
+
+// AI设置
+const aiSettings = reactive<AISettings>({
+  zhipuApiKey: '',
+  baseURL: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+  model: 'glm-4-plus'
+})
+
+// 测试连接状态
+const testingConnection = ref(false)
 
 const addTimePeriod = () => {
   scheduleSettings.timePeriods.push({
@@ -151,12 +240,82 @@ const saveScheduleSettings = async () => {
   }
 }
 
+// AI设置相关方法
+const saveAISettings = async () => {
+  try {
+    if (!aiSettings.zhipuApiKey.trim()) {
+      ElMessage.error('请输入智谱AI密钥')
+      return
+    }
+    
+    // 保存到localStorage
+    localStorage.setItem('ai-settings', JSON.stringify(aiSettings))
+    
+    ElMessage.success('AI服务设置保存成功')
+  } catch (error) {
+    console.error('保存AI设置失败:', error)
+    ElMessage.error('保存AI设置失败')
+  }
+}
+
+const testAIConnection = async () => {
+  if (!aiSettings.zhipuApiKey.trim()) {
+    ElMessage.error('请先输入API密钥')
+    return
+  }
+  
+  testingConnection.value = true
+  
+  try {
+    const response = await fetch(aiSettings.baseURL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${aiSettings.zhipuApiKey}`
+      },
+      body: JSON.stringify({
+        model: aiSettings.model,
+        messages: [{
+          role: 'user',
+          content: '测试连接'
+        }],
+        max_tokens: 10
+      })
+    })
+    
+    if (response.ok) {
+      ElMessage.success('AI服务连接测试成功')
+    } else {
+      const errorData = await response.json()
+      ElMessage.error(`连接测试失败: ${errorData.error?.message || '未知错误'}`)
+    }
+  } catch (error) {
+    console.error('连接测试失败:', error)
+    ElMessage.error('连接测试失败，请检查网络连接和API密钥')
+  } finally {
+    testingConnection.value = false
+  }
+}
+
+const loadAISettings = () => {
+  try {
+    const saved = localStorage.getItem('ai-settings')
+    if (saved) {
+      const settings = JSON.parse(saved)
+      Object.assign(aiSettings, settings)
+    }
+  } catch (error) {
+    console.error('加载AI设置失败:', error)
+  }
+}
+
 const loadScheduleSettings = () => {
   Object.assign(scheduleSettings, settingsStore.scheduleSettings)
 }
 
 onMounted(() => {
   loadScheduleSettings()
+  loadAISettings()
 })
 </script>
 
@@ -260,5 +419,21 @@ onMounted(() => {
 :deep(.el-divider__text) {
   font-weight: 500;
   color: #409eff;
+}
+
+.setting-tip {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+}
+
+.setting-tip .el-text {
+  line-height: 1.5;
+}
+
+.setting-tip .el-link {
+  margin: 0 2px;
 }
 </style>

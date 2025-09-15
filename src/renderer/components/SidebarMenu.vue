@@ -82,10 +82,44 @@
       </el-sub-menu>
 
       <!-- AI智能助手 -->
-      <el-menu-item index="/ai-assistant">
+      <el-sub-menu index="ai">
+        <template #title>
           <el-icon><ChatDotRound /></el-icon>
-          <template #title>AI智能助手</template>
+          <span>AI智能助手</span>
+        </template>
+        <el-menu-item index="/ai-assistant">
+          <el-icon><ChatDotRound /></el-icon>
+          <template #title>智能助手总览</template>
         </el-menu-item>
+        <el-menu-item index="/ai/qa">
+          <el-icon><QuestionFilled /></el-icon>
+          <template #title>教学问答</template>
+        </el-menu-item>
+        <el-menu-item index="/ai/lesson-prep">
+          <el-icon><Document /></el-icon>
+          <template #title>备课助手</template>
+        </el-menu-item>
+        <el-menu-item index="/ai/essay-grading">
+          <el-icon><EditPen /></el-icon>
+          <template #title>作文批改</template>
+        </el-menu-item>
+        <el-menu-item index="/ai/resources">
+          <el-icon><FolderOpened /></el-icon>
+          <template #title>教育资源</template>
+        </el-menu-item>
+        <el-menu-item index="/ai/multimedia">
+          <el-icon><VideoCamera /></el-icon>
+          <template #title>多媒体工具</template>
+        </el-menu-item>
+        <el-menu-item index="/ai/schedule">
+          <el-icon><Clock /></el-icon>
+          <template #title>日程提醒</template>
+        </el-menu-item>
+        <el-menu-item index="/ai/ppt">
+          <el-icon><Monitor /></el-icon>
+          <template #title>AI PPT助手</template>
+        </el-menu-item>
+      </el-sub-menu>
 
       <!-- 系统功能 -->
       <el-sub-menu index="system">
@@ -156,7 +190,11 @@ import {
   Operation,
   DataAnalysis,
   ChatDotRound,
-  Star
+  Star,
+  QuestionFilled,
+  EditPen,
+  VideoCamera,
+  Monitor
 } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../stores/settings'
 

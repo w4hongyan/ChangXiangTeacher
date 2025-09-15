@@ -396,6 +396,63 @@ async function handleDeleteSession(event: any, sessionId: string) {
   }
 }
 
+// 处理AI内容生成请求
+async function handleGenerateContent(event: any, prompt: string, type: string = 'general') {
+  try {
+    const config = await getAIConfig()
+    
+    // 构建消息数组
+    const messages = [
+      {
+        role: 'system',
+        content: getSystemPrompt(type)
+      },
+      {
+        role: 'user', 
+        content: prompt
+      }
+    ]
+    
+    let result
+    
+    // 根据配置选择AI服务
+    if (config.qwen_api_key) {
+      result = await callQwen(messages, config)
+    } else if (config.openai_api_key) {
+      result = await callOpenAI(messages, config)
+    } else {
+      throw new Error('未配置AI服务密钥')
+    }
+    
+    return {
+      success: true,
+      content: result.content,
+      model: result.model,
+      tokens_used: result.tokens_used
+    }
+  } catch (error) {
+    console.error('生成内容失败:', error)
+    return {
+      success: false,
+      error: error.message
+    }
+  }
+}
+
+// 获取不同类型的系统提示词
+function getSystemPrompt(type: string): string {
+  const prompts = {
+    'ppt_generation': '你是一个专业的PPT制作助手。请根据用户的要求生成结构化的PPT内容，包括标题、内容和配图建议。返回的内容必须是有效的JSON格式。',
+    'slide_regeneration': '你是一个专业的PPT制作助手。请重新生成指定幻灯片的内容，保持与整体风格一致。返回的内容必须是有效的JSON格式。',
+    'lesson_prep': '你是一个专业的教学助手，擅长制作教案、分析教学内容和生成练习题。',
+    'essay_grading': '你是一个专业的作文批改老师，能够客观公正地评价学生作文并给出建设性建议。',
+    'qa': '你是一个知识渊博的教学问答助手，能够回答各种教育相关问题。',
+    'general': '你是一个智能助手，能够帮助用户解决各种问题。'
+  }
+  
+  return prompts[type] || prompts['general']
+}
+
 // 注册AI相关的IPC处理器
 export function registerAIHandlers() {
   // AI配置相关
@@ -410,6 +467,9 @@ export function registerAIHandlers() {
   
   // AI聊天
   ipcMain.handle('ai:chat', handleAIChat)
+  
+  // AI内容生成
+  ipcMain.handle('ai:generateContent', handleGenerateContent)
   
   console.log('AI处理器注册完成')
 }

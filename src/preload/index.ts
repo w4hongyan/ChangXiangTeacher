@@ -128,6 +128,7 @@ declare global {
         getSessionMessages: (sessionId: string) => Promise<any>
         deleteSession: (sessionId: string) => Promise<any>
         chat: (sessionId: string, message: string, type?: string) => Promise<any>
+        generateContent: (prompt: string, type?: string) => Promise<any>
       }
       backup: {
          list: (options?: any) => Promise<any>
@@ -283,7 +284,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createSession: (title: string, type?: string) => ipcRenderer.invoke('ai:createSession', title, type),
     getSessionMessages: (sessionId: string) => ipcRenderer.invoke('ai:getSessionMessages', sessionId),
     deleteSession: (sessionId: string) => ipcRenderer.invoke('ai:deleteSession', sessionId),
-    chat: (sessionId: string, message: string, type?: string) => ipcRenderer.invoke('ai:chat', sessionId, message, type)
+    chat: (sessionId: string, message: string, type?: string) => ipcRenderer.invoke('ai:chat', sessionId, message, type),
+    generateContent: (prompt: string, type?: string) => ipcRenderer.invoke('ai:generateContent', prompt, type)
   },
   backup: {
      list: (options?: any) => ipcRenderer.invoke('backup:list', options),
