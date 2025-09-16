@@ -245,13 +245,13 @@ export function registerHomeworkHandlers(dbManager: DatabaseManager) {
           await dbManager.run(`
             INSERT INTO homework_submissions (homework_id, student_id, status)
             VALUES (?, ?, 'not_submitted')
-          `, [result.lastID, student.id])
+          `, [result.lastInsertRowid, student.id])
         }
       }
 
       return {
         success: true,
-        data: { id: result.lastID },
+        data: { id: result.lastInsertRowid },
         message: '作业创建成功'
       }
     } catch (error) {

@@ -358,7 +358,7 @@ async function handleCreateSession(event: any, title: string, type: string = 'ge
     
     return {
       success: true,
-      sessionId: result.lastID
+      sessionId: result.lastInsertRowid
     }
   } catch (error) {
     console.error('创建会话失败:', error)

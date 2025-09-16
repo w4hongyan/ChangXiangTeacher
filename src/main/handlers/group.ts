@@ -19,7 +19,7 @@ export function setupGroupHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const groupId = result.lastID || result.lastInsertRowid
+      const groupId = result.lastInsertRowid
 
       if (!groupId) {
         throw new Error('无法获取新创建的小组ID')

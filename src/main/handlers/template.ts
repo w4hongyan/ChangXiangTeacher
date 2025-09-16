@@ -179,7 +179,7 @@ export function setupTemplateHandlers(db: DatabaseManager) {
         null // 创建者ID，暂时为空
       ])
       
-      return { success: true, data: { id: result.lastID } }
+      return { success: true, data: { id: result.lastInsertRowid } }
     } catch (error) {
       console.error('创建模板失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '创建模板失败' }

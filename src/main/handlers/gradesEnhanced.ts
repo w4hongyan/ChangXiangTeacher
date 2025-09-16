@@ -177,7 +177,7 @@ export function setupEnhancedGradeHandlers(dbManager: DatabaseManager) {
       return {
         success: true,
         data: {
-          report_id: reportResult.lastID,
+          report_id: reportResult.lastInsertRowid,
           analysis
         }
       }
@@ -339,7 +339,7 @@ export function setupEnhancedGradeHandlers(dbManager: DatabaseManager) {
       return {
         success: true,
         data: {
-          report_id: reportResult.lastID,
+          report_id: reportResult.lastInsertRowid,
           analysis
         }
       }
@@ -472,7 +472,7 @@ export function setupEnhancedGradeHandlers(dbManager: DatabaseManager) {
       return {
         success: true,
         data: {
-          report_id: reportResult.lastID,
+          report_id: reportResult.lastInsertRowid,
           analysis: analysisResult
         }
       }

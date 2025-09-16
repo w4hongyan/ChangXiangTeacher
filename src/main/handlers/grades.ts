@@ -203,7 +203,7 @@ export function setupGradeHandlers(dbManager: DatabaseManager) {
         gradeData.notes || null
       ])
       
-      return { success: true, data: { id: result.lastID } }
+      return { success: true, data: { id: result.lastInsertRowid } }
     } catch (error) {
       console.error('创建成绩失败:', error)
       return { success: false, error: error.message }

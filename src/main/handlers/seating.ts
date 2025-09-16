@@ -140,7 +140,7 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         FROM seats s
         LEFT JOIN students st ON s.student_id = st.id
         WHERE s.class_id = ?
-        ORDER BY s.row, s.column
+        ORDER BY s.row_number, s.col_number
       `
       const seats = await db.all(seatsQuery, [classId])
 
@@ -191,8 +191,8 @@ export function setupSeatingHandlers(db: DatabaseManager) {
       
       // 将学生信息填充到座位布局中
       seats.forEach(seat => {
-        if (seat.student_id && layoutObj.seats[seat.row - 1] && layoutObj.seats[seat.row - 1][seat.column - 1]) {
-          const seatPosition = layoutObj.seats[seat.row - 1][seat.column - 1]
+        if (seat.student_id && layoutObj.seats[seat.row_number - 1] && layoutObj.seats[seat.row_number - 1][seat.col_number - 1]) {
+          const seatPosition = layoutObj.seats[seat.row_number - 1][seat.col_number - 1]
           if (seatPosition.type === 'seat') {
             seatPosition.occupied = true
             seatPosition.student_id = seat.student_id
@@ -207,20 +207,19 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         name: seat.student_name,
         student_id: seat.student_id,
         gender: seat.gender,
-        row: seat.row,
-        column: seat.column,
+        row_number: seat.row_number,
+        col_number: seat.col_number,
         seat_id: seat.id
       }))
 
       // 找出未分配座位的学生
-      // 根据座位表中的student_id(学号)查找对应的学生
+      // 座位表的student_id存储的是students表的主键id
       const assignedStudentIds = new Set<number>()
       const realStudentsInSeats: any[] = []
       
       seats.filter(seat => seat.student_id).forEach(seat => {
-        // 根据座位表中的student_id(学号)查找对应的学生
-        // 注意：座位表的student_id存储的是学生的学号，需要与学生表的student_id字段匹配
-        const student = allStudents.find(s => s.student_id === seat.student_id)
+        // 座位表的student_id存储的是students表的主键id，直接匹配
+        const student = allStudents.find(s => s.id === seat.student_id)
         if (student) {
           assignedStudentIds.add(student.id)
           realStudentsInSeats.push({
@@ -228,8 +227,8 @@ export function setupSeatingHandlers(db: DatabaseManager) {
             name: student.name,
             student_id: student.student_id,
             gender: student.gender,
-            row: seat.row,
-            column: seat.column,
+            row_number: seat.row_number,
+            col_number: seat.col_number,
             seat_id: seat.id
           })
         }
@@ -265,13 +264,13 @@ export function setupSeatingHandlers(db: DatabaseManager) {
     try {
       // 检查座位是否已被占用
       const existingSeat = await db.get(
-        'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+        'SELECT id, student_id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
         [data.class_id, data.row, data.column]
       )
 
       // 检查学生当前的座位
       const currentStudentSeat = await db.get(
-        'SELECT id, row, column FROM seats WHERE class_id = ? AND student_id = ?',
+        'SELECT id, row_number, col_number FROM seats WHERE class_id = ? AND student_id = ?',
         [data.class_id, data.student_id]
       )
 
@@ -300,7 +299,7 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         
         // 创建新座位
         await db.run(
-          'INSERT INTO seats (class_id, student_id, row, column) VALUES (?, ?, ?, ?)',
+          'INSERT INTO seats (class_id, student_id, row_number, col_number) VALUES (?, ?, ?, ?)',
           [data.class_id, data.student_id, data.row, data.column]
         )
       }
@@ -321,7 +320,7 @@ export function setupSeatingHandlers(db: DatabaseManager) {
   }) => {
     try {
       await db.run(
-        'UPDATE seats SET student_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE class_id = ? AND row = ? AND column = ?',
+        'UPDATE seats SET student_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE class_id = ? AND row_number = ? AND col_number = ?',
         [data.class_id, data.row, data.column]
       )
 
@@ -342,12 +341,12 @@ export function setupSeatingHandlers(db: DatabaseManager) {
     try {
       // 获取两个座位的学生信息
       const seat1 = await db.get(
-        'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+        'SELECT id, student_id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
         [data.class_id, data.seat1.row, data.seat1.column]
       )
       
       const seat2 = await db.get(
-        'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+        'SELECT id, student_id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
         [data.class_id, data.seat2.row, data.seat2.column]
       )
 
@@ -394,12 +393,12 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         // 获取所有座位的学生信息
         for (const swap of data.swaps) {
           const seat1 = await db.get(
-            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
             [data.class_id, swap.seat1.row, swap.seat1.column]
           )
           
           const seat2 = await db.get(
-            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
             [data.class_id, swap.seat2.row, swap.seat2.column]
           )
           
@@ -422,12 +421,12 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         // 然后交换学生ID
         for (const swap of data.swaps) {
           const seat1 = await db.get(
-            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
             [data.class_id, swap.seat1.row, swap.seat1.column]
           )
           
           const seat2 = await db.get(
-            'SELECT id, student_id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+            'SELECT id, student_id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
             [data.class_id, swap.seat2.row, swap.seat2.column]
           )
           
@@ -488,8 +487,8 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         for (const seat of currentSeats) {
           if (!fixedStudentIds.includes(seat.student_id.toString())) {
             await db.run(
-              'UPDATE seats SET student_id = NULL WHERE class_id = ? AND row = ? AND column = ?',
-              [classId, seat.row, seat.column]
+              'UPDATE seats SET student_id = NULL WHERE class_id = ? AND row_number = ? AND col_number = ?',
+              [classId, seat.row_number, seat.col_number]
             )
           }
         }
@@ -905,8 +904,8 @@ function calculatePodiumDistance(seat: any, seatLayoutArray: any[][]): number {
 // 辅助函数：计算座位的平衡性分数
 function calculateBalanceScore(seat: any, allSeats: any[]): number {
   // 计算在同行和同列的座位数量
-  const sameRowSeats = allSeats.filter(s => s.row === seat.row).length
-  const sameColSeats = allSeats.filter(s => s.column === seat.column).length
+  const sameRowSeats = allSeats.filter(s => s.row_number === seat.row_number).length
+  const sameColSeats = allSeats.filter(s => s.col_number === seat.col_number).length
   
   // 返回平衡性分数（数量越多越不平衡）
   return (sameRowSeats + sameColSeats) / 2
@@ -922,7 +921,7 @@ async function assignSingleStudent(
   try {
     // 检查座位是否存在
     const existingSeat = await db.get(
-      'SELECT id FROM seats WHERE class_id = ? AND row = ? AND column = ?',
+      'SELECT id FROM seats WHERE class_id = ? AND row_number = ? AND col_number = ?',
       [classId, seat.row, seat.column]
     )
 
@@ -933,7 +932,7 @@ async function assignSingleStudent(
       )
     } else {
       await db.run(
-        'INSERT INTO seats (class_id, student_id, row, column) VALUES (?, ?, ?, ?)',
+        'INSERT INTO seats (class_id, student_id, row_number, col_number) VALUES (?, ?, ?, ?)',
         [classId, student.id, seat.row, seat.column]
       )
     }

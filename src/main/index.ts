@@ -73,7 +73,7 @@ ipcMain.handle('classes:create', async (_, classData) => {
       classData.year || new Date().getFullYear(),
       true
     ])
-    return { success: true, data: { id: result.lastID } }
+    return { success: true, data: { id: result.lastInsertRowid } }
   } catch (error) {
     console.error('创建班级失败:', error)
     return { success: false, error: error.message }
@@ -237,18 +237,35 @@ app.whenReady().then(async () => {
   // 初始化资源导航数据表
   console.log('Initializing resource tables...')
   try {
-    // 添加超时机制
+    // 添加更长的超时机制，并增加重试逻辑
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Resource tables initialization timeout')), 10000)
+      setTimeout(() => reject(new Error('Resource tables initialization timeout')), 30000) // 增加到30秒
     })
     
-    await Promise.race([
-      initResourceTables(dbManager.db),
-      timeoutPromise
-    ])
-    console.log('Resource tables initialized successfully')
+    // 添加重试机制
+    let retryCount = 0
+    const maxRetries = 2
+    
+    while (retryCount <= maxRetries) {
+      try {
+        await Promise.race([
+          initResourceTables(dbManager.db),
+          timeoutPromise
+        ])
+        console.log('Resource tables initialized successfully')
+        break
+      } catch (error) {
+        retryCount++
+        if (retryCount > maxRetries) {
+          throw error
+        }
+        console.warn(`Resource tables initialization attempt ${retryCount} failed, retrying...`, error)
+        // 等待1秒后重试
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
   } catch (error) {
-    console.error('Failed to initialize resource tables:', error)
+    console.error('Failed to initialize resource tables after retries:', error)
     console.log('Continuing without resource tables...')
   }
 

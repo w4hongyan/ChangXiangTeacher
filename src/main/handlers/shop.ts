@@ -105,7 +105,7 @@ export function setupShopHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const itemId = result.lastID || result.lastInsertRowid
+      const itemId = result.lastInsertRowid
 
       if (!itemId) {
         throw new Error('无法获取新创建的商品ID')
@@ -244,7 +244,7 @@ export function setupShopHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const categoryId = result.lastID || result.lastInsertRowid
+      const categoryId = result.lastInsertRowid
 
       const newCategory = await db.get('SELECT * FROM shop_categories WHERE id = ?', [Number(categoryId)])
       
@@ -303,7 +303,7 @@ export function setupShopHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const exchangeId = result.lastID || result.lastInsertRowid
+      const exchangeId = result.lastInsertRowid
 
       // 扣除积分
       await db.run(

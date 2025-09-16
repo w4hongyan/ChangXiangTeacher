@@ -149,7 +149,7 @@ export function setupCalendarHandlers(db: DatabaseManager) {
         true
       ])
 
-      return { success: true, data: { id: result.lastID } }
+      return { success: true, data: { id: result.lastInsertRowid } }
     } catch (error) {
       console.error('创建日历事件失败:', error)
       return { success: false, error: error instanceof Error ? error.message : '创建日历事件失败' }

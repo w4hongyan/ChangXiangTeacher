@@ -169,10 +169,30 @@ export function setupStudentHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const studentId = result.lastID || result.lastInsertRowid
+      const studentId = result.lastInsertRowid
 
       if (!studentId) {
-        throw new Error('无法获取新创建的学生ID')
+        // 如果无法获取ID，尝试通过其他方式查找刚创建的学生
+        console.warn('无法获取lastInsertRowid，尝试通过其他方式查找学生')
+        let newStudent = null
+        
+        if (data.student_id && data.student_id.trim()) {
+          // 如果有学号，通过学号查找
+          newStudent = await db.get('SELECT * FROM students WHERE student_id = ?', [data.student_id.trim()])
+        } else {
+          // 如果没有学号，通过姓名和班级查找最新创建的学生
+          newStudent = await db.get(
+            'SELECT * FROM students WHERE name = ? AND class_id = ? ORDER BY created_at DESC LIMIT 1',
+            [data.name, data.class_id]
+          )
+        }
+        
+        if (newStudent) {
+          return { success: true, data: newStudent }
+        } else {
+          // 如果还是找不到，返回成功但没有详细数据
+          return { success: true, data: { message: '学生创建成功，但无法获取详细信息' } }
+        }
       }
 
       // 返回创建的学生

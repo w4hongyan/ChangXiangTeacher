@@ -489,7 +489,7 @@ const getSeatClass = (seat: SeatPosition, rowIndex: number, colIndex: number) =>
 
 // 获取座位中的学生信息
 const getStudentInSeat = (row: number, column: number) => {
-  return props.arrangement?.students.find(s => s.row === row && s.column === column)
+  return props.arrangement?.students.find(s => s.row_number === row && s.col_number === column)
 }
 
 // 点击座位
@@ -893,14 +893,17 @@ const handleAutoAssign = () => {
 
 // 保存排位安排
 const handleSaveArrangement = async () => {
-  if (!props.arrangement?.assigned_students) {
+  // 使用实际的学生数组长度而不是assigned_students字段
+  const actualAssignedCount = props.arrangement?.students?.length || 0
+  
+  if (!props.arrangement || actualAssignedCount === 0) {
     ElMessage.warning('请先分配学生到座位')
     return
   }
   
   try {
     await ElMessageBox.confirm(
-      `确定要保存当前的排位安排吗？\n\n已分配学生：${props.arrangement.assigned_students} 人\n未分配学生：${(props.arrangement.total_students || 0) - (props.arrangement.assigned_students || 0)} 人`,
+      `确定要保存当前的排位安排吗？\n\n已分配学生：${actualAssignedCount} 人\n未分配学生：${(props.arrangement.total_students || 0) - actualAssignedCount} 人`,
       '确认保存',
       {
         confirmButtonText: '保存',
@@ -975,13 +978,13 @@ const handleExportExcel = () => {
     }> = []
     if (props.arrangement.students) {
       props.arrangement.students.forEach(student => {
-        const seatNumber = getSeatNumber(student.row - 1, student.column - 1)
+        const seatNumber = getSeatNumber(student.row_number - 1, student.col_number - 1)
         assignedStudents.push({
           seatNumber: parseInt(seatNumber) || 999, // 转为数字便于排序，无效座位号排在最后
           seatNumberText: seatNumber,
           name: student.name,
-          row: student.row,
-          column: student.column
+          row: student.row_number,
+          column: student.col_number
         })
       })
     }

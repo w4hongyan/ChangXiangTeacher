@@ -38,29 +38,25 @@ export interface ResourceSettings {
 }
 
 // 初始化资源数据表
-export function initResourceTables(db: Database): Promise<void> {
+export function initResourceTables(db: any): Promise<void> {
   return new Promise((resolve, reject) => {
-    console.log('Creating resources table...')
-    // 创建资源表
-    db.run(`
-      CREATE TABLE IF NOT EXISTS resources (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        description TEXT,
-        url TEXT NOT NULL,
-        category TEXT NOT NULL,
-        tags TEXT, -- JSON字符串存储标签数组
-        isLocal INTEGER DEFAULT 0,
-        filePath TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) {
-        console.error('Failed to create resources table:', err)
-        reject(err)
-        return
-      }
+    try {
+      console.log('Creating resources table...')
+      // 创建资源表
+      db.run(`
+        CREATE TABLE IF NOT EXISTS resources (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          description TEXT,
+          url TEXT NOT NULL,
+          category TEXT NOT NULL,
+          tags TEXT, -- JSON字符串存储标签数组
+          isLocal INTEGER DEFAULT 0,
+          filePath TEXT,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
       console.log('Resources table created successfully')
 
       console.log('Creating resource_categories table...')
@@ -74,84 +70,65 @@ export function initResourceTables(db: Database): Promise<void> {
           color TEXT,
           createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-      `, (err) => {
-        if (err) {
-          console.error('Failed to create resource_categories table:', err)
-          reject(err)
-          return
-        }
-        console.log('Resource categories table created successfully')
+      `)
+      console.log('Resource categories table created successfully')
 
-        console.log('Creating resource_settings table...')
-        // 创建资源设置表
-        db.run(`
-          CREATE TABLE IF NOT EXISTS resource_settings (
-            id INTEGER PRIMARY KEY,
-            autoOpenExternal INTEGER DEFAULT 1,
-            defaultCategory TEXT DEFAULT '学习资源',
-            showPreview INTEGER DEFAULT 1,
-            sortBy TEXT DEFAULT 'createdAt',
-            sortOrder TEXT DEFAULT 'desc'
+      console.log('Creating resource_settings table...')
+      // 创建资源设置表
+      db.run(`
+        CREATE TABLE IF NOT EXISTS resource_settings (
+          id INTEGER PRIMARY KEY,
+          autoOpenExternal INTEGER DEFAULT 1,
+          defaultCategory TEXT DEFAULT '学习资源',
+          showPreview INTEGER DEFAULT 1,
+          sortBy TEXT DEFAULT 'createdAt',
+          sortOrder TEXT DEFAULT 'desc'
+        )
+      `)
+      console.log('Resource settings table created successfully')
+
+      // 插入默认分类
+      console.log('Inserting default categories...')
+      const defaultCategories = [
+        { name: '学习资源', description: '教学相关的学习资源', icon: 'book', color: '#3498db' },
+        { name: '教学工具', description: '辅助教学的工具软件', icon: 'tool', color: '#e74c3c' },
+        { name: '课件模板', description: '课件制作模板', icon: 'presentation', color: '#f39c12' },
+        { name: '素材库', description: '图片、音频、视频素材', icon: 'image', color: '#27ae60' },
+        { name: '参考文档', description: '教学参考文档', icon: 'file-text', color: '#9b59b6' },
+        { name: '在线平台', description: '在线教学平台', icon: 'globe', color: '#1abc9c' }
+      ]
+
+      // 插入分类数据
+      for (const category of defaultCategories) {
+        try {
+          db.run(
+            'INSERT OR IGNORE INTO resource_categories (name, description, icon, color) VALUES (?, ?, ?, ?)',
+            [category.name, category.description, category.icon, category.color]
           )
-        `, (err) => {
-          if (err) {
-            console.error('Failed to create resource_settings table:', err)
-            reject(err)
-            return
-          }
-          console.log('Resource settings table created successfully')
+          console.log(`分类 ${category.name} 插入成功`)
+        } catch (err) {
+          console.warn(`插入分类 ${category.name} 失败:`, err)
+          // 继续处理其他分类，不中断整个流程
+        }
+      }
 
-          // 插入默认分类
-          console.log('Inserting default categories...')
-          const defaultCategories = [
-            { name: '学习资源', description: '教学相关的学习资源', icon: 'book', color: '#3498db' },
-            { name: '教学工具', description: '辅助教学的工具软件', icon: 'tool', color: '#e74c3c' },
-            { name: '课件模板', description: '课件制作模板', icon: 'presentation', color: '#f39c12' },
-            { name: '素材库', description: '图片、音频、视频素材', icon: 'image', color: '#27ae60' },
-            { name: '参考文档', description: '教学参考文档', icon: 'file-text', color: '#9b59b6' },
-            { name: '在线平台', description: '在线教学平台', icon: 'globe', color: '#1abc9c' }
-          ]
-
-          // 使用Promise.all来处理所有插入操作
-          const insertPromises = defaultCategories.map(category => {
-            return new Promise<void>((resolveInsert, rejectInsert) => {
-              db.run(
-                'INSERT OR IGNORE INTO resource_categories (name, description, icon, color) VALUES (?, ?, ?, ?)',
-                [category.name, category.description, category.icon, category.color],
-                function(err) {
-                  if (err) {
-                    console.error(`插入分类 ${category.name} 失败:`, err)
-                    rejectInsert(err)
-                  } else {
-                    console.log(`分类 ${category.name} 插入成功`)
-                    resolveInsert()
-                  }
-                }
-              )
-            })
-          })
-
-          Promise.all(insertPromises)
-            .then(() => {
-              console.log('All categories inserted, inserting default settings...')
-              // 插入默认设置
-              db.run(
-                'INSERT OR IGNORE INTO resource_settings (id, autoOpenExternal, defaultCategory, showPreview, sortBy, sortOrder) VALUES (1, 1, "学习资源", 1, "createdAt", "desc")',
-                (err) => {
-                  if (err) {
-                    console.error('Failed to insert default settings:', err)
-                    reject(err)
-                  } else {
-                    console.log('Default settings inserted successfully')
-                    resolve()
-                  }
-                }
-              )
-            })
-            .catch(reject)
-        })
-      })
-    })
+      console.log('All categories processed, inserting default settings...')
+      // 插入默认设置
+      try {
+        db.run(
+          'INSERT OR IGNORE INTO resource_settings (id, autoOpenExternal, defaultCategory, showPreview, sortBy, sortOrder) VALUES (1, 1, "学习资源", 1, "createdAt", "desc")'
+        )
+        console.log('Default settings inserted successfully')
+      } catch (err) {
+        console.warn('插入默认设置失败:', err)
+      }
+      
+      console.log('Resource tables initialization completed')
+      resolve()
+    } catch (error) {
+      console.error('Resource tables initialization failed:', error)
+      reject(error)
+    }
   })
 }
 

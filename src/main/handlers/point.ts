@@ -130,7 +130,7 @@ export function setupPointHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const pointId = result.lastID || result.lastInsertRowid
+      const pointId = result.lastInsertRowid
 
       if (!pointId) {
         throw new Error('无法获取新创建的积分记录ID')

@@ -160,7 +160,7 @@ const selectedStudents = computed(() => {
 
 // 方法
 const getStudentInSeat = (row: number, column: number) => {
-  return props.arrangement?.students.find(s => s.row === row && s.column === column)
+  return props.arrangement?.students.find(s => s.row_number === row && s.col_number === column)
 }
 
 const isSelected = (row: number, col: number) => {

@@ -508,8 +508,8 @@ const handleClearAll = async () => {
     const promises = currentArrangement.value.students.map(student => 
       seatingStore.removeStudentFromSeat({
         class_id: selectedClass.value!.id!,
-        row: student.row,
-        column: student.column
+        row: student.row_number,
+        column: student.col_number
       })
     )
     
