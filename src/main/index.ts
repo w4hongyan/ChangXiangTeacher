@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { DatabaseManager, getDatabaseManager } from './database'
 import { setupStudentHandlers } from './handlers/student'
@@ -233,8 +234,23 @@ app.whenReady().then(async () => {
   // 初始化AI数据表
   await initAITables()
   
-  // 初始化资源导航数据表 - 暂时跳过
-  console.log('Skipping resource tables initialization for now...')
+  // 初始化资源导航数据表
+  console.log('Initializing resource tables...')
+  try {
+    // 添加超时机制
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Resource tables initialization timeout')), 10000)
+    })
+    
+    await Promise.race([
+      initResourceTables(dbManager.db),
+      timeoutPromise
+    ])
+    console.log('Resource tables initialized successfully')
+  } catch (error) {
+    console.error('Failed to initialize resource tables:', error)
+    console.log('Continuing without resource tables...')
+  }
 
   // 设置考勤管理handlers
   console.log('Registering attendance handlers...')
@@ -246,9 +262,15 @@ app.whenReady().then(async () => {
   
   // 设置AI智能助手handlers
   registerAIHandlers()
-  
+
   // 设置资源导航handlers
-  registerResourceHandlers(dbManager.db)
+  console.log('Registering resource handlers...')
+  try {
+    registerResourceHandlers(dbManager.db)
+    console.log('Resource handlers registered successfully')
+  } catch (error) {
+    console.error('Failed to register resource handlers:', error)
+  }
   
   // 设置备份管理handlers
   registerBackupHandlers()
@@ -262,6 +284,10 @@ app.whenReady().then(async () => {
   // 启动云同步调度器
   startCloudSyncScheduler()
 
+  // 配置自动更新
+  console.log('Configuring auto updater...')
+  setupAutoUpdater()
+  
   console.log('About to create window...')
   createWindow()
   console.log('Window creation completed')
@@ -290,4 +316,93 @@ ipcMain.handle('db-get', async (_, sql: string, params?: any[]) => {
 
 ipcMain.handle('db-all', async (_, sql: string, params?: any[]) => {
   return await dbManager.all(sql, params)
+})
+
+// 自动更新功能
+function setupAutoUpdater() {
+  // 配置更新服务器
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'changxiang',
+    repo: 'teacher-tool'
+  })
+
+  // 自动下载更新
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+
+  // 检查更新事件
+  autoUpdater.on('checking-for-update', () => {
+    console.log('正在检查更新...')
+    mainWindow?.webContents.send('update-checking')
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('发现新版本:', info.version)
+    mainWindow?.webContents.send('update-available', info)
+  })
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('当前已是最新版本:', info.version)
+    mainWindow?.webContents.send('update-not-available', info)
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('更新检查失败:', err)
+    mainWindow?.webContents.send('update-error', err.message)
+  })
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log(`下载进度: ${progressObj.percent}%`)
+    mainWindow?.webContents.send('update-download-progress', progressObj)
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('更新下载完成:', info.version)
+    mainWindow?.webContents.send('update-downloaded', info)
+  })
+
+  // 启动时检查更新（延迟5秒）
+  setTimeout(() => {
+    if (!app.isPackaged) {
+      console.log('开发环境，跳过更新检查')
+      return
+    }
+    autoUpdater.checkForUpdatesAndNotify()
+  }, 5000)
+}
+
+// IPC处理器：手动检查更新
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    if (!app.isPackaged) {
+      return { success: false, message: '开发环境不支持更新检查' }
+    }
+    const result = await autoUpdater.checkForUpdatesAndNotify()
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('检查更新失败:', error)
+    return { success: false, message: error.message }
+  }
+})
+
+// IPC处理器：下载更新
+ipcMain.handle('download-update', async () => {
+  try {
+    await autoUpdater.downloadUpdate()
+    return { success: true }
+  } catch (error) {
+    console.error('下载更新失败:', error)
+    return { success: false, message: error.message }
+  }
+})
+
+// IPC处理器：安装更新并重启
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall()
+})
+
+// IPC处理器：获取当前版本
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion()
 })

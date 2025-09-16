@@ -1,6 +1,6 @@
 {
   "name": "changxiang-teacher",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "description": "现代化教师教学管理工具 - 基于Electron + SQLite",
   "main": "out/main/index.js",
   "scripts": {
@@ -56,7 +56,9 @@
     "chart.js": "^4.4.1",
     "dayjs": "^1.11.10",
     "echarts": "^6.0.0",
+    "electron": "^38.1.0",
     "electron-store": "^8.1.0",
+    "electron-updater": "^6.6.2",
     "element-plus": "^2.4.4",
     "html2canvas": "^1.4.1",
     "knex": "^3.1.0",
@@ -80,13 +82,19 @@
     ],
     "nodeGypRebuild": false,
     "buildDependenciesFromSource": false,
+    "publish": {
+      "provider": "github",
+      "owner": "changxiang",
+      "repo": "teacher-tool"
+    },
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.education"
     },
     "win": {
       "icon": "build/icon.ico",
-      "target": "nsis"
+      "target": "nsis",
+      "publisherName": "ChangXiang Team"
     },
     "linux": {
       "icon": "build/icon.png",
@@ -96,7 +104,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "allowElevation": true
     }
   }
 }

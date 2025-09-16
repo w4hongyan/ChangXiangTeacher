@@ -2,6 +2,8 @@
   <div id="app" :class="{ 'dark-theme': isDarkMode }">
     <el-config-provider :locale="zhCn">
       <router-view />
+      <!-- 更新通知组件 -->
+      <UpdateNotification ref="updateNotificationRef" />
     </el-config-provider>
   </div>
 </template>
@@ -10,6 +12,7 @@
 import { ref, onMounted } from 'vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import { useSettingsStore } from './stores/settings'
+import UpdateNotification from './components/UpdateNotification.vue'
 
 const settingsStore = useSettingsStore()
 const isDarkMode = ref(false)

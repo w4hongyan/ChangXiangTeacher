@@ -150,6 +150,18 @@ declare global {
          listFiles: (providerId: string, remotePath?: string) => Promise<any>
          getSyncStatus: (providerId: string) => Promise<any>
        }
+       updater: {
+         checkForUpdates: () => Promise<any>
+         downloadUpdate: () => Promise<any>
+         installUpdate: () => void
+         getAppVersion: () => Promise<string>
+         onUpdateChecking: (callback: () => void) => () => void
+         onUpdateAvailable: (callback: (info: any) => void) => () => void
+         onUpdateNotAvailable: (callback: (info: any) => void) => () => void
+         onUpdateError: (callback: (error: string) => void) => () => void
+         onDownloadProgress: (callback: (progress: any) => void) => () => void
+         onUpdateDownloaded: (callback: (info: any) => void) => () => void
+       }
     }
   }
 }
@@ -299,14 +311,44 @@ contextBridge.exposeInMainWorld('electronAPI', {
      selectPath: () => ipcRenderer.invoke('backup:selectPath')
    },
    cloud: {
-     getProviders: () => ipcRenderer.invoke('cloud:getProviders'),
-     connect: (providerId: string, credentials: any) => ipcRenderer.invoke('cloud:connect', providerId, credentials),
-     disconnect: (providerId: string) => ipcRenderer.invoke('cloud:disconnect', providerId),
-     sync: (providerId: string, filePath: string) => ipcRenderer.invoke('cloud:sync', providerId, filePath),
-     download: (providerId: string, remotePath: string, localPath: string) => ipcRenderer.invoke('cloud:download', providerId, remotePath, localPath),
-     listFiles: (providerId: string, remotePath?: string) => ipcRenderer.invoke('cloud:listFiles', providerId, remotePath),
-     getSyncStatus: (providerId: string) => ipcRenderer.invoke('cloud:getSyncStatus', providerId)
-   }
+      getProviders: () => ipcRenderer.invoke('cloud:getProviders'),
+      connect: (providerId: string, credentials: any) => ipcRenderer.invoke('cloud:connect', providerId, credentials),
+      disconnect: (providerId: string) => ipcRenderer.invoke('cloud:disconnect', providerId),
+      sync: (providerId: string, filePath: string) => ipcRenderer.invoke('cloud:sync', providerId, filePath),
+      download: (providerId: string, remotePath: string, localPath: string) => ipcRenderer.invoke('cloud:download', providerId, remotePath, localPath),
+      listFiles: (providerId: string, remotePath?: string) => ipcRenderer.invoke('cloud:listFiles', providerId, remotePath),
+      getSyncStatus: (providerId: string) => ipcRenderer.invoke('cloud:getSyncStatus', providerId)
+    },
+    updater: {
+      checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+      downloadUpdate: () => ipcRenderer.invoke('download-update'),
+      installUpdate: () => ipcRenderer.invoke('install-update'),
+      getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+      onUpdateChecking: (callback: () => void) => {
+        ipcRenderer.on('update-checking', callback)
+        return () => ipcRenderer.removeListener('update-checking', callback)
+      },
+      onUpdateAvailable: (callback: (info: any) => void) => {
+        ipcRenderer.on('update-available', (_, info) => callback(info))
+        return () => ipcRenderer.removeListener('update-available', callback)
+      },
+      onUpdateNotAvailable: (callback: (info: any) => void) => {
+        ipcRenderer.on('update-not-available', (_, info) => callback(info))
+        return () => ipcRenderer.removeListener('update-not-available', callback)
+      },
+      onUpdateError: (callback: (error: string) => void) => {
+        ipcRenderer.on('update-error', (_, error) => callback(error))
+        return () => ipcRenderer.removeListener('update-error', callback)
+      },
+      onDownloadProgress: (callback: (progress: any) => void) => {
+        ipcRenderer.on('update-download-progress', (_, progress) => callback(progress))
+        return () => ipcRenderer.removeListener('update-download-progress', callback)
+      },
+      onUpdateDownloaded: (callback: (info: any) => void) => {
+        ipcRenderer.on('update-downloaded', (_, info) => callback(info))
+        return () => ipcRenderer.removeListener('update-downloaded', callback)
+      }
+    }
 })
 
 // 开发工具警告移除

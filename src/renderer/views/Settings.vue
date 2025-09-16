@@ -159,6 +159,47 @@
                 <h3>系统设置</h3>
               </div>
               
+              <el-form label-width="120px" class="settings-form">
+                <el-form-item label="应用更新">
+                  <div class="update-section">
+                    <div class="update-info">
+                      <p><strong>当前版本：</strong>{{ currentVersion }}</p>
+                      <p class="version-description">保持应用程序为最新版本以获得最佳体验和安全性</p>
+                    </div>
+                    <div class="update-actions">
+                      <el-button 
+                        type="primary" 
+                        @click="checkForUpdates" 
+                        :loading="checkingUpdate"
+                        :icon="Refresh"
+                      >
+                        {{ checkingUpdate ? '检查中...' : '检查更新' }}
+                      </el-button>
+                    </div>
+                  </div>
+                  <div class="setting-tip">
+                    <el-text type="info" size="small">
+                      应用会自动检查更新，您也可以手动检查最新版本
+                    </el-text>
+                  </div>
+                </el-form-item>
+                
+                <el-form-item label="自动更新">
+                  <el-switch 
+                    v-model="autoUpdateEnabled" 
+                    active-text="启用自动更新检查" 
+                    @change="saveAutoUpdateSetting"
+                  />
+                  <div class="setting-tip">
+                    <el-text type="info" size="small">
+                      启用后，应用启动时会自动检查更新
+                    </el-text>
+                  </div>
+                </el-form-item>
+              </el-form>
+              
+              <el-divider />
+              
               <div class="coming-soon">
                 <el-empty description="更多系统设置功能正在开发中，敬请期待...">
                   <el-button type="primary" @click="$router.push('/')">返回首页</el-button>
@@ -251,6 +292,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import Layout from './Layout.vue'
 import { useSettingsStore, type TimePeriod, type ScheduleSettings } from '../stores/settings'
 
@@ -281,6 +323,11 @@ const activeTab = ref('schedule')
 // 外观设置
 const themeMode = ref('light')
 const uiScale = ref(100)
+
+// 更新相关
+const currentVersion = ref('')
+const checkingUpdate = ref(false)
+const autoUpdateEnabled = ref(true)
 
 const addTimePeriod = () => {
   scheduleSettings.timePeriods.push({
@@ -459,9 +506,48 @@ const resetData = async () => {
   }
 }
 
+// 更新相关方法
+const checkForUpdates = async () => {
+  try {
+    checkingUpdate.value = true
+    await window.electronAPI.updater.checkForUpdates()
+  } catch (error) {
+    console.error('检查更新失败:', error)
+    ElMessage.error('检查更新失败，请稍后重试')
+  } finally {
+    checkingUpdate.value = false
+  }
+}
+
+const saveAutoUpdateSetting = () => {
+  try {
+    localStorage.setItem('autoUpdateEnabled', JSON.stringify(autoUpdateEnabled.value))
+    ElMessage.success('自动更新设置已保存')
+  } catch (error) {
+    console.error('保存自动更新设置失败:', error)
+    ElMessage.error('保存设置失败')
+  }
+}
+
+const loadUpdateSettings = async () => {
+  try {
+    // 获取当前版本
+    currentVersion.value = await window.electronAPI.updater.getAppVersion()
+    
+    // 加载自动更新设置
+    const saved = localStorage.getItem('autoUpdateEnabled')
+    if (saved !== null) {
+      autoUpdateEnabled.value = JSON.parse(saved)
+    }
+  } catch (error) {
+    console.error('加载更新设置失败:', error)
+  }
+}
+
 onMounted(() => {
   loadScheduleSettings()
   loadAISettings()
+  loadUpdateSettings()
 })
 </script>
 
@@ -709,6 +795,36 @@ onMounted(() => {
 
 .setting-tip .el-link {
   margin: 0 2px;
+}
+
+/* 更新相关样式 */
+.update-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.update-info {
+  flex: 1;
+}
+
+.update-info p {
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.version-description {
+  color: #666 !important;
+  font-size: 14px;
+}
+
+.update-actions {
+  flex-shrink: 0;
 }
 
 /* 响应式设计 */

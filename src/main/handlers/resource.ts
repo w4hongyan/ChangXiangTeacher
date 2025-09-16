@@ -40,6 +40,7 @@ export interface ResourceSettings {
 // 初始化资源数据表
 export function initResourceTables(db: Database): Promise<void> {
   return new Promise((resolve, reject) => {
+    console.log('Creating resources table...')
     // 创建资源表
     db.run(`
       CREATE TABLE IF NOT EXISTS resources (
@@ -56,10 +57,13 @@ export function initResourceTables(db: Database): Promise<void> {
       )
     `, (err) => {
       if (err) {
+        console.error('Failed to create resources table:', err)
         reject(err)
         return
       }
+      console.log('Resources table created successfully')
 
+      console.log('Creating resource_categories table...')
       // 创建资源分类表
       db.run(`
         CREATE TABLE IF NOT EXISTS resource_categories (
@@ -72,10 +76,13 @@ export function initResourceTables(db: Database): Promise<void> {
         )
       `, (err) => {
         if (err) {
+          console.error('Failed to create resource_categories table:', err)
           reject(err)
           return
         }
+        console.log('Resource categories table created successfully')
 
+        console.log('Creating resource_settings table...')
         // 创建资源设置表
         db.run(`
           CREATE TABLE IF NOT EXISTS resource_settings (
@@ -88,11 +95,14 @@ export function initResourceTables(db: Database): Promise<void> {
           )
         `, (err) => {
           if (err) {
+            console.error('Failed to create resource_settings table:', err)
             reject(err)
             return
           }
+          console.log('Resource settings table created successfully')
 
           // 插入默认分类
+          console.log('Inserting default categories...')
           const defaultCategories = [
             { name: '学习资源', description: '教学相关的学习资源', icon: 'book', color: '#3498db' },
             { name: '教学工具', description: '辅助教学的工具软件', icon: 'tool', color: '#e74c3c' },
@@ -102,32 +112,43 @@ export function initResourceTables(db: Database): Promise<void> {
             { name: '在线平台', description: '在线教学平台', icon: 'globe', color: '#1abc9c' }
           ]
 
-          let insertCount = 0
-          defaultCategories.forEach(category => {
-            db.run(
-              'INSERT OR IGNORE INTO resource_categories (name, description, icon, color) VALUES (?, ?, ?, ?)',
-              [category.name, category.description, category.icon, category.color],
-              (err) => {
-                if (err) {
-                  console.error('插入默认分类失败:', err)
+          // 使用Promise.all来处理所有插入操作
+          const insertPromises = defaultCategories.map(category => {
+            return new Promise<void>((resolveInsert, rejectInsert) => {
+              db.run(
+                'INSERT OR IGNORE INTO resource_categories (name, description, icon, color) VALUES (?, ?, ?, ?)',
+                [category.name, category.description, category.icon, category.color],
+                function(err) {
+                  if (err) {
+                    console.error(`插入分类 ${category.name} 失败:`, err)
+                    rejectInsert(err)
+                  } else {
+                    console.log(`分类 ${category.name} 插入成功`)
+                    resolveInsert()
+                  }
                 }
-                insertCount++
-                if (insertCount === defaultCategories.length) {
-                  // 插入默认设置
-                  db.run(
-                    'INSERT OR IGNORE INTO resource_settings (id, autoOpenExternal, defaultCategory, showPreview, sortBy, sortOrder) VALUES (1, 1, "学习资源", 1, "createdAt", "desc")',
-                    (err) => {
-                      if (err) {
-                        reject(err)
-                      } else {
-                        resolve()
-                      }
-                    }
-                  )
-                }
-              }
-            )
+              )
+            })
           })
+
+          Promise.all(insertPromises)
+            .then(() => {
+              console.log('All categories inserted, inserting default settings...')
+              // 插入默认设置
+              db.run(
+                'INSERT OR IGNORE INTO resource_settings (id, autoOpenExternal, defaultCategory, showPreview, sortBy, sortOrder) VALUES (1, 1, "学习资源", 1, "createdAt", "desc")',
+                (err) => {
+                  if (err) {
+                    console.error('Failed to insert default settings:', err)
+                    reject(err)
+                  } else {
+                    console.log('Default settings inserted successfully')
+                    resolve()
+                  }
+                }
+              )
+            })
+            .catch(reject)
         })
       })
     })
