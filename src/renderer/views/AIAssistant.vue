@@ -109,7 +109,7 @@ const aiModules = ref([
     description: '智能问答助手，解答教学疑问，提供专业建议',
     icon: ChatDotRound,
     color: '#409EFF',
-    route: '/ai/qa',
+    route: '/qa-assistant',
     featured: true,
     features: ['智能问答', '教学建议', '知识解答']
   },
@@ -119,7 +119,7 @@ const aiModules = ref([
     description: '智能备课工具，生成教案、课件和教学资源',
     icon: Notebook,
     color: '#67C23A',
-    route: '/ai/lesson-prep',
+    route: '/lesson-prep-assistant',
     featured: true,
     features: ['教案生成', '课件制作', '资源推荐']
   },

@@ -98,24 +98,26 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/AIAssistant.vue'),
     meta: { title: 'AI智能助手' }
   },
-  {
-    path: '/ai/qa',
-    name: 'QAAssistant',
-    component: () => import('../views/QAAssistant.vue'),
-    meta: { title: '教学问答' }
-  },
-  {
-    path: '/ai/lesson-prep',
-    name: 'LessonPrepAssistant',
-    component: () => import('../views/LessonPrepAssistant.vue'),
-    meta: { title: '备课助手' }
-  },
+
   {
     path: '/ai/essay-grading',
-    name: 'EssayGradingAssistant',
-    component: () => import('../views/EssayGradingAssistant.vue'),
+    name: 'AIEssayGrading',
+    component: () => import('../views/ai/AIEssayGrading.vue'),
     meta: { title: '作文批改' }
   },
+  {
+    path: '/data-backup',
+    name: 'DataBackup',
+    component: () => import('../views/DataBackup.vue'),
+    meta: { title: '数据备份' }
+  },
+  {
+    path: '/resource-navigation',
+    name: 'ResourceNavigation',
+    component: () => import('../views/ResourceNavigation.vue'),
+    meta: { title: '资源导航' }
+  },
+
   {
     path: '/ai/resources',
     name: 'EducationResourcesAssistant',
@@ -147,11 +149,7 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '课堂抽签' }
   },
   {
-      path: '/backup',
-      name: 'Backup',
-      component: () => import('../views/Backup.vue'),
-      meta: { title: '数据备份' }
-    },
+      },
     {
       path: '/cloud',
       name: 'Cloud',
@@ -176,7 +174,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/templates',
-    name: 'Templates',
+    name: 'TemplatesEnhanced',
     component: () => import('../views/TemplatesEnhanced.vue'),
     meta: {
       title: '文档模板'

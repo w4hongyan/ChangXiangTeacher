@@ -91,11 +91,11 @@
           <el-icon><ChatDotRound /></el-icon>
           <template #title>智能助手总览</template>
         </el-menu-item>
-        <el-menu-item index="/ai/qa">
+        <el-menu-item index="/qa-assistant">
           <el-icon><QuestionFilled /></el-icon>
           <template #title>教学问答</template>
         </el-menu-item>
-        <el-menu-item index="/ai/lesson-prep">
+        <el-menu-item index="/lesson-prep-assistant">
           <el-icon><Document /></el-icon>
           <template #title>备课助手</template>
         </el-menu-item>
@@ -139,7 +139,7 @@
           <el-icon><Document /></el-icon>
           <template #title>文档模板</template>
         </el-menu-item>
-        <el-menu-item index="/backup">
+        <el-menu-item index="/data-backup">
           <el-icon><FolderOpened /></el-icon>
           <template #title>数据备份</template>
         </el-menu-item>

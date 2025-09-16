@@ -18,6 +18,7 @@ import { registerBackupHandlers, initBackupTables, startAutoBackupScheduler } fr
 import { registerCloudHandlers, initCloudTables, startCloudSyncScheduler } from './handlers/cloud'
 import { registerHomeworkHandlers, initHomeworkTables } from './handlers/homework'
 import { initAITables, registerAIHandlers } from './handlers/ai'
+import { registerResourceHandlers, initResourceTables } from './handlers/resource'
 
 let mainWindow: BrowserWindow
 const dbManager = getDatabaseManager()
@@ -222,6 +223,9 @@ app.whenReady().then(async () => {
   // 初始化AI数据表
   await initAITables()
   
+  // 初始化资源导航数据表
+  await initResourceTables(dbManager.db)
+  
   // 设置考勤管理handlers
   registerAttendanceHandlers()
   
@@ -230,6 +234,9 @@ app.whenReady().then(async () => {
   
   // 设置AI智能助手handlers
   registerAIHandlers()
+  
+  // 设置资源导航handlers
+  registerResourceHandlers(dbManager.db)
   
   // 设置备份管理handlers
   registerBackupHandlers()
