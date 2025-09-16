@@ -119,6 +119,7 @@ ipcMain.handle('classes:delete', async (_, id: number) => {
 })
 
 function createWindow(): void {
+  console.log('createWindow function called')
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -160,8 +161,14 @@ function createWindow(): void {
 
   // 在开发模式下，使用环境变量或默认URL
   if (process.env.NODE_ENV === 'development') {
-    const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5175'
-    mainWindow.loadURL(rendererUrl)
+    const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://localhost:8083'
+    console.log('Loading renderer URL:', rendererUrl)
+    console.log('Window created, attempting to load URL...')
+    mainWindow.loadURL(rendererUrl).then(() => {
+      console.log('URL loaded successfully')
+    }).catch((error) => {
+      console.error('Failed to load URL:', error)
+    })
     mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
@@ -169,13 +176,16 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  console.log('App is ready, starting initialization...')
   // 设置应用ID
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.changxiang.teacher')
   }
 
   // 初始化数据库
+  console.log('Initializing database...')
   await dbManager.initialize()
+  console.log('Database initialized successfully')
 
   // 设置学生管理handlers
   setupStudentHandlers(dbManager)
@@ -223,11 +233,13 @@ app.whenReady().then(async () => {
   // 初始化AI数据表
   await initAITables()
   
-  // 初始化资源导航数据表
-  await initResourceTables(dbManager.db)
-  
+  // 初始化资源导航数据表 - 暂时跳过
+  console.log('Skipping resource tables initialization for now...')
+
   // 设置考勤管理handlers
+  console.log('Registering attendance handlers...')
   registerAttendanceHandlers()
+  console.log('Attendance handlers registered')
   
   // 设置作业管理handlers
   registerHomeworkHandlers(dbManager)
@@ -250,7 +262,9 @@ app.whenReady().then(async () => {
   // 启动云同步调度器
   startCloudSyncScheduler()
 
+  console.log('About to create window...')
   createWindow()
+  console.log('Window creation completed')
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
