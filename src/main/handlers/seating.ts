@@ -217,9 +217,16 @@ export function setupSeatingHandlers(db: DatabaseManager) {
       const assignedStudentIds = new Set<number>()
       const realStudentsInSeats: any[] = []
       
+      // 统计实际已分配的座位数量（有student_id的座位）
+      const actualAssignedCount = seats.filter(seat => seat.student_id).length
+      
       seats.filter(seat => seat.student_id).forEach(seat => {
-        // 座位表的student_id存储的是students表的主键id，直接匹配
-        const student = allStudents.find(s => s.id === seat.student_id)
+        // 座位表的student_id存储的是学生的学号，需要与students表的student_id字段匹配
+        const student = allStudents.find(s => {
+          // 使用学号进行匹配
+          return String(s.student_id) === String(seat.student_id)
+        })
+        // 匹配成功后添加到已分配列表
         if (student) {
           assignedStudentIds.add(student.id)
           realStudentsInSeats.push({
@@ -236,6 +243,8 @@ export function setupSeatingHandlers(db: DatabaseManager) {
       
       const unassignedStudents = allStudents.filter(student => !assignedStudentIds.has(student.id))
 
+      // 数据处理完成，构建返回结果
+
       const result = {
         class_id: classId,
         class_name: `${classInfo.grade}${classInfo.class_number}班`,
@@ -243,7 +252,7 @@ export function setupSeatingHandlers(db: DatabaseManager) {
         students: realStudentsInSeats,  // 使用新的数据
         unassigned_students: unassignedStudents,
         total_students: allStudents.length,
-        assigned_students: realStudentsInSeats.length  // 使用新的数据
+        assigned_students: actualAssignedCount  // 使用实际已分配的座位数量
       }
 
       return { success: true, data: result }

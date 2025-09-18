@@ -893,10 +893,26 @@ const handleAutoAssign = () => {
 
 // 保存排位安排
 const handleSaveArrangement = async () => {
-  // 使用实际的学生数组长度而不是assigned_students字段
-  const actualAssignedCount = props.arrangement?.students?.length || 0
+  // 检查是否有座位布局
+  if (!props.arrangement || !props.arrangement.layout) {
+    ElMessage.warning('请先设置座位布局')
+    return
+  }
   
-  if (!props.arrangement || actualAssignedCount === 0) {
+  // 统计实际分配的学生数量（检查layout中有student_id的座位）
+  let actualAssignedCount = 0
+  const layout = props.arrangement.layout.seats
+  if (layout) {
+    for (const row of layout) {
+      for (const seat of row) {
+        if (seat.type === 'seat' && seat.student_id) {
+          actualAssignedCount++
+        }
+      }
+    }
+  }
+  
+  if (actualAssignedCount === 0) {
     ElMessage.warning('请先分配学生到座位')
     return
   }

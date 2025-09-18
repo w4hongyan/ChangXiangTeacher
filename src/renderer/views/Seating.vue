@@ -368,8 +368,10 @@ const handleAssignStudent = async (data: {
     
     if (result.success) {
       ElMessage.success('学生座位分配成功')
-      // 强制刷新数据确保同步
-      await loadSeatingArrangement()
+      
+
+      
+      // store中已经自动刷新了数据，无需重复调用
     } else {
       ElMessage.error(result.error || '分配失败')
     }
@@ -397,8 +399,7 @@ const handleRemoveStudent = async (data: {
     
     if (result.success) {
       ElMessage.success('学生座位移除成功')
-      // 强制刷新数据确保同步
-      await loadSeatingArrangement()
+      // store中已经自动刷新了数据，无需重复调用
     } else {
       ElMessage.error(result.error || '移除失败')
     }
@@ -423,8 +424,7 @@ const handleSwapStudents = async (data: {
     
     if (result.success) {
       ElMessage.success('学生座位交换成功')
-      // 强制刷新数据确保同步
-      await loadSeatingArrangement()
+      // store中已经自动刷新了数据，无需重复调用
     } else {
       ElMessage.error(result.error || '交换失败')
     }
@@ -449,8 +449,7 @@ const handleSwapMultipleStudents = async (swaps: Array<{
     
     if (result.success) {
       ElMessage.success('学生座位批量交换成功')
-      // 强制刷新数据确保同步
-      await loadSeatingArrangement()
+      // store中已经自动刷新了数据，无需重复调用
     } else {
       ElMessage.error(result.error || '批量交换失败')
     }
@@ -488,8 +487,10 @@ const handleAutoAssign = async (data?: {
         : `${strategyText}成功，共分配 ${result.data?.assigned || 0} 个学生`
       
       ElMessage.success(successMessage)
-      // 强制刷新数据确保同步
-      await loadSeatingArrangement()
+      
+
+      
+      // store中已经自动刷新了数据，无需重复调用
     } else {
       ElMessage.error(result.error || '自动分配失败')
     }
