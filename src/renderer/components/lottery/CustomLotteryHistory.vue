@@ -29,7 +29,6 @@
             >
               <el-option label="文本抽签" value="text" />
               <el-option label="数字抽签" value="number" />
-              <el-option label="学生抽签" value="student" />
             </el-select>
             <el-button type="danger" size="small" @click="clearAllHistory" :disabled="historyRecords.length === 0">
               <el-icon><Delete /></el-icon>
@@ -148,12 +147,11 @@ interface LotteryConfig {
 
 interface CustomLotteryRecord {
   id: string
-  mode: 'text' | 'number' | 'student'
+  mode: 'text' | 'number'
   options: string[]
   results: string[]
   config: LotteryConfig
   time: Date
-  className?: string // 学生抽签时的班级名称
 }
 
 const emit = defineEmits<{
@@ -201,7 +199,6 @@ const getModeTagType = (mode: string) => {
   switch (mode) {
     case 'text': return 'primary'
     case 'number': return 'warning'
-    case 'student': return 'success'
     default: return 'info'
   }
 }
@@ -211,7 +208,6 @@ const getModeLabel = (mode: string) => {
   switch (mode) {
     case 'text': return '文本抽签'
     case 'number': return '数字抽签'
-    case 'student': return '学生抽签'
     default: return '未知模式'
   }
 }

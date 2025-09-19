@@ -14,7 +14,7 @@ import { setupEnhancedTemplateHandlers } from './handlers/templateEnhanced'
 import { setupGradeHandlers } from './handlers/grades'
 import { setupEnhancedGradeHandlers } from './handlers/gradesEnhanced'
 import { setupShopHandlers } from './handlers/shop'
-import { registerAttendanceHandlers, initAttendanceTables } from './handlers/attendance'
+
 import { registerBackupHandlers, initBackupTables, startAutoBackupScheduler } from './handlers/backup'
 import { registerCloudHandlers, initCloudTables, startCloudSyncScheduler } from './handlers/cloud'
 import { registerHomeworkHandlers, initHomeworkTables } from './handlers/homework'
@@ -220,7 +220,7 @@ app.whenReady().then(async () => {
   setupShopHandlers(dbManager)
   
   // 初始化考勤数据表
-  await initAttendanceTables()
+
   
   // 初始化备份数据表
   await initBackupTables()
@@ -270,9 +270,7 @@ app.whenReady().then(async () => {
   }
 
   // 设置考勤管理handlers
-  console.log('Registering attendance handlers...')
-  registerAttendanceHandlers()
-  console.log('Attendance handlers registered')
+
   
   // 设置作业管理handlers
   registerHomeworkHandlers(dbManager)

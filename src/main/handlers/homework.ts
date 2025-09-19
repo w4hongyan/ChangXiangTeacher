@@ -235,18 +235,22 @@ export function registerHomeworkHandlers(dbManager: DatabaseManager) {
       ])
 
       // 如果作业发布，为班级所有学生创建提交记录
-      if (homework.status === 'published') {
+      if (homework.status === 'published' && result.lastInsertRowid) {
+        console.log('创建作业成功，ID:', result.lastInsertRowid)
         const students = await dbManager.all(
           'SELECT id FROM students WHERE class_id = ? AND is_active = 1',
           [homework.class_id]
         )
 
+        console.log(`为 ${students.length} 个学生创建提交记录`)
         for (const student of students) {
           await dbManager.run(`
             INSERT INTO homework_submissions (homework_id, student_id, status)
             VALUES (?, ?, 'not_submitted')
           `, [result.lastInsertRowid, student.id])
         }
+      } else if (homework.status === 'published' && !result.lastInsertRowid) {
+        console.warn('作业状态为published但lastInsertRowid为null，跳过创建提交记录')
       }
 
       return {

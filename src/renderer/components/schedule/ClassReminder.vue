@@ -33,8 +33,8 @@
         
         <div class="class-actions">
           <el-button type="primary" @click="markAttendance">
-            <el-icon><Check /></el-icon>
-            开始上课
+            <el-icon><CircleCheck /></el-icon>
+            标记上课
           </el-button>
           <el-button @click="postponeClass">
             <el-icon><Timer /></el-icon>
@@ -288,7 +288,6 @@ const isClassUpcoming = (schedule: Schedule) => {
 
 const markAttendance = () => {
   ElMessage.success('已标记开始上课')
-  // 这里可以添加考勤记录逻辑
 }
 
 const postponeClass = () => {

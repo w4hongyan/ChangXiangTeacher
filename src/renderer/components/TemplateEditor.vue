@@ -368,8 +368,7 @@ const basicComponents = [
 const dataComponents = [
   { type: 'student-info', name: '学生信息', icon: 'User' },
   { type: 'class-info', name: '班级信息', icon: 'Files' },
-  { type: 'grade-data', name: '成绩数据', icon: 'Trophy' },
-  { type: 'attendance-data', name: '考勤数据', icon: 'Calendar' }
+  { type: 'grade-data', name: '成绩数据', icon: 'Trophy' }
 ]
 
 // 系统变量

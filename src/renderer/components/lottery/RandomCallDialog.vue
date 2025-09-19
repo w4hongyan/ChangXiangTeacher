@@ -156,12 +156,13 @@ const canStart = computed(() => {
 
 const loadClasses = async () => {
   try {
-    // 模拟API调用 - 实际项目中应该调用真实的API
-    classes.value = [
-      { id: 1, name: '七年级1班' },
-      { id: 2, name: '七年级2班' },
-      { id: 3, name: '八年级1班' }
-    ]
+    // 调用学生store获取班级列表
+    const result = await window.electronAPI.students.getClasses()
+    if (result.success) {
+      classes.value = result.data
+    } else {
+      ElMessage.error('加载班级列表失败：' + result.error)
+    }
   } catch (error) {
     ElMessage.error('加载班级列表失败')
   }
@@ -172,21 +173,28 @@ const loadStudents = async () => {
   
   loading.value = true
   try {
-    // 模拟API调用 - 实际项目中应该调用真实的API
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // 调用学生store获取学生数据
+    const result = await window.electronAPI.students.list({
+      class_id: selectedClassId.value,
+      page: 1,
+      page_size: 1000 // 获取所有学生
+    })
     
-    students.value = [
-      { id: 1, name: '张三', student_id: '2024001', seat_number: 'A1', is_absent: false },
-      { id: 2, name: '李四', student_id: '2024002', seat_number: 'A2', is_absent: false },
-      { id: 3, name: '王五', student_id: '2024003', seat_number: 'A3', is_absent: true },
-      { id: 4, name: '赵六', student_id: '2024004', seat_number: 'A4', is_absent: false },
-      { id: 5, name: '钱七', student_id: '2024005', seat_number: 'B1', is_absent: false },
-      { id: 6, name: '孙八', student_id: '2024006', seat_number: 'B2', is_absent: false },
-      { id: 7, name: '周九', student_id: '2024007', seat_number: 'B3', is_absent: false },
-      { id: 8, name: '吴十', student_id: '2024008', seat_number: 'B4', is_absent: true }
-    ]
-    
-    filterStudents()
+    if (result.success) {
+      // 转换数据格式，添加座位号和缺席状态
+      students.value = result.data.items.map((student: any) => ({
+        id: student.id,
+        name: student.name,
+        student_id: student.student_id || student.id.toString(),
+        seat_number: student.seat_number || '',
+        is_absent: student.is_absent || false,
+        avatar: student.avatar
+      }))
+      
+      filterStudents()
+    } else {
+      ElMessage.error('加载学生列表失败：' + result.error)
+    }
   } catch (error) {
     ElMessage.error('加载学生列表失败')
   } finally {

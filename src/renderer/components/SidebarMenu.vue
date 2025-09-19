@@ -47,10 +47,6 @@
           <el-icon><UserFilled /></el-icon>
           <span>教学工具</span>
         </template>
-        <el-menu-item index="/attendance">
-          <el-icon><UserFilled /></el-icon>
-          <template #title>班级点名</template>
-        </el-menu-item>
         <el-menu-item index="/homework">
           <el-icon><Document /></el-icon>
           <template #title>作业管理</template>

@@ -111,14 +111,9 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="viewHomework(row)">
-              查看
-            </el-button>
-            <el-button size="small" @click="viewSubmissions(row)">
-              批改
-            </el-button>
+
             <el-button size="small" type="primary" @click="editHomework(row)">
               编辑
             </el-button>
@@ -278,47 +273,7 @@
       </template>
     </el-dialog>
 
-    <!-- 作业详情对话框 -->
-    <el-dialog v-model="showDetailDialog" title="作业详情" width="700px">
-      <div v-if="selectedHomework" class="homework-detail">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="作业标题">
-            {{ selectedHomework.title }}
-          </el-descriptions-item>
-          <el-descriptions-item label="科目">
-            {{ selectedHomework.subject }}
-          </el-descriptions-item>
-          <el-descriptions-item label="班级">
-            {{ selectedHomework.class_name }}
-          </el-descriptions-item>
-          <el-descriptions-item label="优先级">
-            <el-tag :type="getPriorityType(selectedHomework.priority)">
-              {{ getPriorityText(selectedHomework.priority) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="布置日期">
-            {{ selectedHomework.assign_date }}
-          </el-descriptions-item>
-          <el-descriptions-item label="截止日期">
-            {{ selectedHomework.due_date }}
-          </el-descriptions-item>
-          <el-descriptions-item label="满分">
-            {{ selectedHomework.max_score }}分
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="getStatusType(selectedHomework.status)">
-              {{ getStatusText(selectedHomework.status) }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
-        <div class="homework-content" style="margin-top: 20px">
-          <h4>作业描述</h4>
-          <p>{{ selectedHomework.description || '无描述' }}</p>
-          <h4>作业要求</h4>
-          <p style="white-space: pre-wrap">{{ selectedHomework.instructions || '无特殊要求' }}</p>
-        </div>
-      </div>
-    </el-dialog>
+
     </div>
   </Layout>
 </template>
@@ -337,9 +292,7 @@ const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
 const showCreateDialog = ref(false)
-const showDetailDialog = ref(false)
 const editingHomework = ref(null)
-const selectedHomework = ref(null)
 const homeworkFormRef = ref()
 
 // 班级列表
@@ -369,11 +322,13 @@ const homeworkForm = reactive({
   description: '',
   subject: '',
   class_id: null,
+  teacher_id: 1, // 默认教师ID，应该从用户信息获取
   teacher_name: '当前教师',
   assign_date: '',
   due_date: '',
   status: 'draft',
   priority: 'medium',
+  attachments: '', // 附件字段
   max_score: 100,
   instructions: ''
 })
@@ -432,11 +387,28 @@ const saveHomework = async () => {
     await homeworkFormRef.value.validate()
     saving.value = true
     
+    // 创建纯对象，避免响应式对象序列化问题
+    const homeworkData = {
+      title: homeworkForm.title,
+      description: homeworkForm.description,
+      subject: homeworkForm.subject,
+      class_id: homeworkForm.class_id,
+      teacher_id: homeworkForm.teacher_id || 1, // 默认教师ID，应该从用户信息获取
+      teacher_name: homeworkForm.teacher_name,
+      assign_date: homeworkForm.assign_date,
+      due_date: homeworkForm.due_date,
+      status: homeworkForm.status,
+      priority: homeworkForm.priority,
+      attachments: homeworkForm.attachments || '', // 避免undefined
+      instructions: homeworkForm.instructions,
+      max_score: homeworkForm.max_score
+    }
+    
     let result
     if (editingHomework.value) {
-      result = await window.electronAPI.invoke('homework:update', editingHomework.value.id, homeworkForm)
+      result = await window.electronAPI.invoke('homework:update', editingHomework.value.id, homeworkData)
     } else {
-      result = await window.electronAPI.invoke('homework:create', homeworkForm)
+      result = await window.electronAPI.invoke('homework:create', homeworkData)
     }
     
     if (result.success) {
@@ -460,17 +432,7 @@ const editHomework = (homework) => {
   showCreateDialog.value = true
 }
 
-// 查看作业详情
-const viewHomework = (homework) => {
-  selectedHomework.value = homework
-  showDetailDialog.value = true
-}
 
-// 查看提交情况
-const viewSubmissions = (homework) => {
-  // 跳转到提交管理页面
-  router.push(`/homework/${homework.id}/submissions`)
-}
 
 // 删除作业
 const deleteHomework = async (id) => {
@@ -496,11 +458,13 @@ const resetForm = () => {
     description: '',
     subject: '',
     class_id: null,
+    teacher_id: 1, // 默认教师ID
     teacher_name: '当前教师',
     assign_date: '',
     due_date: '',
     status: 'draft',
     priority: 'medium',
+    attachments: '', // 附件字段
     max_score: 100,
     instructions: ''
   })

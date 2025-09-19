@@ -229,7 +229,6 @@
               <el-checkbox label="classes">班级信息</el-checkbox>
               <el-checkbox label="grades">成绩数据</el-checkbox>
               <el-checkbox label="homework">作业数据</el-checkbox>
-              <el-checkbox label="attendance">考勤记录</el-checkbox>
               <el-checkbox label="settings">系统设置</el-checkbox>
             </el-checkbox-group>
           </el-form-item>
@@ -392,7 +391,7 @@ const backupSettings = reactive<BackupSettings>({
   maxBackups: 10,
   cloudSync: false,
   cloudProvider: 'aliyun',
-  backupContent: ['students', 'classes', 'grades', 'homework', 'attendance', 'settings'],
+  backupContent: ['students', 'classes', 'grades', 'homework', 'settings'],
   encryption: true
 })
 

@@ -113,13 +113,7 @@ declare global {
         getExchangeHistory: (params?: any) => Promise<any>
         getStats: (params?: any) => Promise<any>
       }
-      attendance: {
-        save: (data: any) => Promise<any>
-        history: (params?: any) => Promise<any>
-        stats: (params?: any) => Promise<any>
-        today: (classId: number) => Promise<any>
-        export: (params?: any) => Promise<any>
-      }
+
       ai: {
         getConfig: () => Promise<any>
         updateConfig: (config: any) => Promise<any>
@@ -282,13 +276,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getExchangeHistory: (params?: any) => ipcRenderer.invoke('shop:getExchangeHistory', params),
     getStats: (params?: any) => ipcRenderer.invoke('shop:getStats', params)
   },
-  attendance: {
-    save: (data: any) => ipcRenderer.invoke('attendance:save', data),
-    history: (params?: any) => ipcRenderer.invoke('attendance:history', params),
-    stats: (params?: any) => ipcRenderer.invoke('attendance:stats', params),
-    today: (classId: number) => ipcRenderer.invoke('attendance:today', classId),
-    export: (params?: any) => ipcRenderer.invoke('attendance:export', params)
-  },
+
   ai: {
     getConfig: () => ipcRenderer.invoke('ai:getConfig'),
     updateConfig: (config: any) => ipcRenderer.invoke('ai:updateConfig', config),

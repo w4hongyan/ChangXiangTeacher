@@ -376,9 +376,6 @@ async function generateExcelDocument(template: any, data: any, filePath: string)
     case 'grade_report':
       generateGradeReportExcel(wb, data)
       break
-    case 'attendance':
-      generateAttendanceExcel(wb, data)
-      break
     default:
       generateGenericExcel(wb, template, data)
   }
@@ -453,25 +450,7 @@ function generateGradeReportExcel(wb: any, data: any) {
   XLSX.utils.book_append_sheet(wb, ws, '成绩报告')
 }
 
-// 生成考勤表Excel
-function generateAttendanceExcel(wb: any, data: any) {
-  const wsData = [
-    ['日期', '姓名', '学号', '出勤状态', '备注']
-  ]
-  
-  data.attendance?.forEach((record: any) => {
-    wsData.push([
-      record.date,
-      record.student_name,
-      record.student_id || '',
-      record.status,
-      record.notes || ''
-    ])
-  })
-  
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '考勤记录')
-}
+
 
 // 生成通用Excel
 function generateGenericExcel(wb: any, template: any, data: any) {

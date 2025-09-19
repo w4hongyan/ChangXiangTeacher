@@ -118,21 +118,6 @@ export class DatabaseManager {
       )
     `)
 
-    // 其他表...
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS attendance (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER NOT NULL,
-        class_id INTEGER NOT NULL,
-        date DATE NOT NULL,
-        status TEXT NOT NULL,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (student_id) REFERENCES students(id),
-        FOREIGN KEY (class_id) REFERENCES classes(id)
-      )
-    `)
-
     this.db.run(`
       CREATE TABLE IF NOT EXISTS grades (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -398,7 +383,7 @@ export class DatabaseManager {
       stmt.free()
       return {
         changes: this.db.getRowsModified(),
-        lastInsertRowid: result ? result.lastInsertRowid : null
+        lastInsertRowid: result && result.lastInsertRowid ? result.lastInsertRowid : null
       }
     } catch (error) {
       console.error('SQL执行错误:', error)

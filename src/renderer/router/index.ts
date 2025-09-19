@@ -74,24 +74,14 @@ const routes: RouteRecordRaw[] = [
       title: '积分商城'
     }
   },
-  {
-    path: '/attendance',
-    name: 'Attendance',
-    component: () => import('../views/Attendance.vue'),
-    meta: { title: '班级点名' }
-  },
+
   {
     path: '/homework',
     name: 'Homework',
     component: () => import('../views/Homework.vue'),
     meta: { title: '作业管理' }
   },
-  {
-    path: '/homework/:id/submissions',
-    name: 'HomeworkSubmissions',
-    component: () => import('../views/HomeworkSubmissions.vue'),
-    meta: { title: '作业提交管理' }
-  },
+  
   {
     path: '/ai-assistant',
     name: 'AIAssistant',
