@@ -273,11 +273,36 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement
+} from 'chart.js'
 import { Bar, Line } from 'vue-chartjs'
 import { TrendCharts, Download } from '@element-plus/icons-vue'
 import type { Class } from '../types/class'
 import type { Student } from '../types/student'
 import * as XLSX from 'xlsx'
+
+// 注册 Chart.js 组件
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement
+)
 
 interface Props {
   classes: Class[]

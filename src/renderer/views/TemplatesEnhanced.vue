@@ -455,7 +455,6 @@ const navigationTabs = [
 // 分类选项
 const categories = [
   { label: '通知公告', value: 'notice' },
-  { label: '成绩报告', value: 'grade' },
   { label: '课程表', value: 'schedule' },
   { label: '评语模板', value: 'comment' },
   { label: '其他', value: 'other' }

@@ -271,11 +271,44 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement,
+  ScatterController,
+  RadarController,
+  RadialLinearScale,
+  Filler
+} from 'chart.js'
 import { Bar, Line, Scatter, Radar } from 'vue-chartjs'
 import { DataAnalysis, Document, Star } from '@element-plus/icons-vue'
 import type { Class } from '../types/class'
 import type { Student } from '../types/student'
 import * as XLSX from 'xlsx'
+
+// 注册 Chart.js 组件
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  PointElement,
+  LineElement,
+  ScatterController,
+  RadarController,
+  RadialLinearScale,
+  Filler
+)
 
 interface Props {
   classes: Class[]

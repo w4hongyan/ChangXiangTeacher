@@ -2,7 +2,7 @@ export interface DocumentTemplate {
   id?: number
   name: string
   description: string
-  category: 'notice' | 'grade' | 'schedule' | 'comment' | 'other'
+  category: 'notice' | 'schedule' | 'comment' | 'other'
   content: string
   variables?: string[]
   isSystem?: boolean

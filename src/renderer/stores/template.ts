@@ -11,7 +11,6 @@ export const useTemplateStore = defineStore('template', {
     categories: [
       { label: '全部', value: 'all', icon: 'Grid', description: '所有模板' },
       { label: '通知公告', value: 'notice', icon: 'Megaphone', description: '各类通知和公告模板' },
-      { label: '成绩单据', value: 'grade', icon: 'Trophy', description: '成绩单、评价表等' },
       { label: '课程安排', value: 'schedule', icon: 'Calendar', description: '课程表、教学计划等' },
       { label: '评语评价', value: 'comment', icon: 'MessageSquare', description: '学生评语、评价模板' },
       { label: '其他', value: 'other', icon: 'FileText', description: '其他类型模板' }
