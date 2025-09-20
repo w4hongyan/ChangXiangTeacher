@@ -130,7 +130,20 @@ export function setupPointHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const pointId = result.lastInsertRowid
+      console.log('积分创建结果:', result) // 调试日志
+      
+      let pointId = result.lastInsertRowid
+      // 如果lastInsertRowid为null或undefined，尝试其他方式获取ID
+      if (!pointId) {
+        console.warn('无法直接获取lastInsertRowid，尝试通过查询获取最新记录ID')
+        const lastPoint = await db.get(
+          'SELECT id FROM points WHERE student_id = ? AND class_id = ? ORDER BY created_at DESC LIMIT 1',
+          [data.student_id, data.class_id]
+        )
+        if (lastPoint && lastPoint.id) {
+          pointId = lastPoint.id
+        }
+      }
 
       if (!pointId) {
         throw new Error('无法获取新创建的积分记录ID')

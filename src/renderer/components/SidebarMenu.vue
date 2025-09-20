@@ -67,6 +67,7 @@
           <el-icon><Star /></el-icon>
           <template #title>快速积分</template>
         </el-menu-item>
+        
         <el-menu-item index="/shop">
           <el-icon><ShoppingBag /></el-icon>
           <template #title>积分商城</template>

@@ -58,6 +58,7 @@ const routes: RouteRecordRaw[] = [
       title: '快速积分'
     }
   },
+  
   {
     path: '/shop',
     name: 'Shop',
