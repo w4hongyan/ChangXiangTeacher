@@ -119,11 +119,23 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/ScheduleAssistant.vue'),
     meta: { title: '日程提醒' }
   },
-  {
+  {    
     path: '/ai/ppt',
     name: 'AIPPTAssistant',
     component: () => import('../views/AIPPTAssistant.vue'),
     meta: { title: 'AI PPT助手' }
+  },
+  {    
+    path: '/qa-assistant',
+    name: 'QAAssistant',
+    component: () => import('../views/QAAssistant.vue'),
+    meta: { title: '教学问答' }
+  },
+  {    
+    path: '/lesson-prep-assistant',
+    name: 'LessonPrepAssistant',
+    component: () => import('../views/LessonPrepAssistant.vue'),
+    meta: { title: '备课助手' }
   },
   {
     path: '/lottery',

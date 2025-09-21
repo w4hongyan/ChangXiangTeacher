@@ -1,40 +1,29 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    title="分类管理"
-    width="600px"
-    @close="$emit('close')"
-  >
-    <div class="category-management">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="分类名称">
-          <el-input v-model="form.name" placeholder="请输入分类名称" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="addCategory">添加分类</el-button>
-        </el-form-item>
-      </el-form>
-      
-      <el-divider />
-      
-      <div class="category-list">
-        <h4>现有分类</h4>
-        <el-tag
-          v-for="category in categories"
-          :key="category.id"
-          closable
-          @close="deleteCategory(category.id)"
-          style="margin: 5px;"
-        >
-          {{ category.name }}
-        </el-tag>
-      </div>
-    </div>
+  <div class="category-management">
+    <el-form :model="form" label-width="80px">
+      <el-form-item label="分类名称">
+        <el-input v-model="form.name" placeholder="请输入分类名称" />
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="addCategory">添加分类</el-button>
+      </el-form-item>
+    </el-form>
     
-    <template #footer>
-      <el-button @click="$emit('close')">关闭</el-button>
-    </template>
-  </el-dialog>
+    <el-divider />
+    
+    <div class="category-list">
+      <h4>现有分类</h4>
+      <el-tag
+        v-for="category in categories"
+        :key="category.id"
+        closable
+        @close="deleteCategory(category.id)"
+        style="margin: 5px;"
+      >
+        {{ category.name }}
+      </el-tag>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -43,7 +32,6 @@ import { ElMessage } from 'element-plus'
 
 const emit = defineEmits(['close'])
 
-const visible = ref(true)
 const form = ref({
   name: ''
 })

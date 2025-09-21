@@ -14,7 +14,7 @@
     <div class="filter-section">
       <el-form :model="filters" inline>
         <el-form-item label="班级">
-          <el-select v-model="filters.class_id" placeholder="选择班级" clearable @change="loadHomework">
+          <el-select v-model="filters.class_id" placeholder="选择班级" clearable @change="loadHomework" style="width: 150px">
             <el-option
               v-for="cls in classes"
               :key="cls.id"
@@ -24,7 +24,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="科目">
-          <el-select v-model="filters.subject" placeholder="选择科目" clearable @change="loadHomework">
+          <el-select v-model="filters.subject" placeholder="选择科目" clearable @change="loadHomework" style="width: 150px">
             <el-option label="语文" value="语文" />
             <el-option label="数学" value="数学" />
             <el-option label="英语" value="英语" />
@@ -37,7 +37,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="filters.status" placeholder="选择状态" clearable @change="loadHomework">
+          <el-select v-model="filters.status" placeholder="选择状态" clearable @change="loadHomework" style="width: 150px">
             <el-option label="草稿" value="draft" />
             <el-option label="已发布" value="published" />
             <el-option label="已关闭" value="closed" />
@@ -50,6 +50,7 @@
             clearable
             @keyup.enter="loadHomework"
             @clear="loadHomework"
+            style="width: 150px"
           >
             <template #append>
               <el-button @click="loadHomework">
@@ -96,19 +97,6 @@
             <span :class="{ 'overdue': isOverdue(row.due_date) }">
               {{ row.due_date }}
             </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="提交情况" width="120">
-          <template #default="{ row }">
-            <div class="submission-stats">
-              <span>{{ row.submitted_count || 0 }}/{{ row.total_students || 0 }}</span>
-              <el-progress
-                :percentage="getSubmissionPercentage(row)"
-                :stroke-width="6"
-                :show-text="false"
-                style="margin-top: 4px"
-              />
-            </div>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">

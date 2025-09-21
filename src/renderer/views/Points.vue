@@ -524,7 +524,7 @@ const groupStore = useGroupStore()
 const classStore = useClassStore()
 
 // 响应式数据
-const activeTab = ref('ranking')
+const activeTab = ref('studentManagement')
 const rankingTab = ref('student')
 const showAddPointDialog = ref(false)
 const selectedClassId = ref<number | null>(null)
