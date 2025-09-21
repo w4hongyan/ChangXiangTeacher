@@ -4,14 +4,42 @@
 const path = require('path')
 const fs = require('fs')
 const initSqlJs = require('sql.js')
+const os = require('os')
+const homedir = os.homedir()
 
-// 使用项目根目录下的 data 文件夹存储数据库
-const dataDir = path.join(__dirname, '..', 'data')
-const dbPath = path.join(dataDir, 'database.db')
+// 解析命令行参数
+const args = process.argv.slice(2)
+let dbPath = null
 
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
+// 查找是否有 --db-path 参数
+const dbPathIndex = args.findIndex(arg => arg.startsWith('--db-path='))
+if (dbPathIndex !== -1) {
+  // 有指定数据库路径参数
+  dbPath = args[dbPathIndex].split('=')[1]
+} else {
+  // 默认使用应用程序实际使用的数据库路径
+  // Windows: C:\Users\用户名\AppData\Roaming\changxiang-teacher\data\database.db
+  // macOS: /Users/用户名/Library/Application Support/changxiang-teacher/data/database.db
+  // Linux: /home/用户名/.config/changxiang-teacher/data/database.db
+  let appDataPath
+  if (process.platform === 'win32') {
+    appDataPath = process.env.APPDATA || path.join(homedir, 'AppData', 'Roaming')
+  } else if (process.platform === 'darwin') {
+    appDataPath = path.join(homedir, 'Library', 'Application Support')
+  } else {
+    appDataPath = process.env.XDG_CONFIG_HOME || path.join(homedir, '.config')
+  }
+  
+  const dataDir = path.join(appDataPath, 'changxiang-teacher', 'data')
+  dbPath = path.join(dataDir, 'database.db')
+  
+  // 确保数据目录存在
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true })
+  }
 }
+
+console.log('使用的数据库路径:', dbPath)
 
 ;(async () => {
   try {
@@ -254,6 +282,42 @@ if (!fs.existsSync(dataDir)) {
       insertStmt.free()
       db.exec('ROLLBACK')
       console.warn('插入示例数据失败或已存在，已跳过。原因：', e.message || e)
+    }
+
+    // 插入示例商品分类数据
+    const sampleCategories = [
+      { name: '学习用品', description: '各类学习相关物品', icon: '📚', color: '#409EFF', sort_order: 1, is_active: 1 },
+      { name: '生活用品', description: '各类生活相关物品', icon: '🧴', color: '#67C23A', sort_order: 2, is_active: 1 },
+      { name: '娱乐用品', description: '各类娱乐相关物品', icon: '🎮', color: '#E6A23C', sort_order: 3, is_active: 1 },
+      { name: '奖励物品', description: '各类奖励相关物品', icon: '🏆', color: '#F56C6C', sort_order: 4, is_active: 1 },
+      { name: '特色商品', description: '特色定制商品', icon: '⭐', color: '#909399', sort_order: 5, is_active: 1 }
+    ]
+
+    const insertCategoryStmt = db.prepare(`
+      INSERT OR IGNORE INTO shop_categories (
+        name, description, icon, color, sort_order, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `)
+
+    db.exec('BEGIN')
+    try {
+      for (const category of sampleCategories) {
+        insertCategoryStmt.run([
+          category.name,
+          category.description,
+          category.icon,
+          category.color,
+          category.sort_order,
+          category.is_active
+        ])
+      }
+      insertCategoryStmt.free()
+      db.exec('COMMIT')
+      console.log('示例商品分类数据插入完成')
+    } catch (e) {
+      insertCategoryStmt.free()
+      db.exec('ROLLBACK')
+      console.warn('插入示例商品分类数据失败或已存在，已跳过。原因：', e.message || e)
     }
 
     // 保存数据库文件
