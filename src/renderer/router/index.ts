@@ -43,19 +43,19 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/points',
-    name: 'Points',
-    component: () => import('../views/Points.vue'),
-    meta: {
-      title: '积分管理'
-    }
-  },
-  {
     path: '/quick-points',
     name: 'QuickPoints',
     component: () => import('../views/QuickPoints.vue'),
     meta: {
       title: '快速积分'
+    }
+  },
+  {
+    path: '/points',
+    name: 'Points',
+    component: () => import('../views/Points.vue'),
+    meta: {
+      title: '积分管理'
     }
   },
   

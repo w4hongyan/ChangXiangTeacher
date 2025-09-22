@@ -56,6 +56,10 @@ export const usePointStore = defineStore('point', () => {
       const result = await window.electronAPI.points.create(data)
       if (result.success) {
         await fetchPoints()
+        // 如果包含班级ID，刷新该班级的学生积分汇总
+        if (data.class_id) {
+          await fetchStudentPointsSummary(data.class_id)
+        }
         return { success: true, data: result.data }
       } else {
         error.value = result.error

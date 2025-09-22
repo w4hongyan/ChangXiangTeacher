@@ -59,13 +59,13 @@
           <el-icon><TrendCharts /></el-icon>
           <template #title>成绩管理</template>
         </el-menu-item>
-        <el-menu-item index="/points">
-          <el-icon><Trophy /></el-icon>
-          <template #title>积分管理</template>
-        </el-menu-item>
         <el-menu-item index="/quick-points">
           <el-icon><Star /></el-icon>
           <template #title>快速积分</template>
+        </el-menu-item>
+        <el-menu-item index="/points">
+          <el-icon><Star /></el-icon>
+          <template #title>积分管理</template>
         </el-menu-item>
         
         <el-menu-item index="/shop">

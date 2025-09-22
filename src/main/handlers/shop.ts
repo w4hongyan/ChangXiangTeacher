@@ -307,8 +307,8 @@ export function setupShopHandlers(db: DatabaseManager) {
 
       // 扣除积分
       await db.run(
-        'INSERT INTO points (student_id, class_id, points, type, reason, given_date) VALUES (?, ?, ?, ?, ?, ?)',
-        [data.student_id, data.class_id, -totalCost, 'penalty', `兑换商品：${item.name}`, new Date().toISOString().split('T')[0]]
+        'INSERT INTO points (student_id, group_id, class_id, points, type, reason, given_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [data.student_id, null, data.class_id, -totalCost, 'penalty', `兑换商品：${item.name}`, new Date().toISOString().split('T')[0]]
       )
 
       // 更新商品销量和库存
