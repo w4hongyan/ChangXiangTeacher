@@ -523,80 +523,89 @@ onMounted(async () => {
 
 .student-cards-container {
   margin-top: 20px;
+  height: calc(100vh - 300px);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.student-cards-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.student-cards-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.student-cards-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.student-cards-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .selection-info {
   margin-bottom: 15px;
+  position: sticky;
+  top: 0;
+  background: white;
+  padding: 10px 0;
+  z-index: 10;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .student-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
 }
 
 .student-card {
   border: 1px solid #ebeef5;
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: 4px;
+  padding: 12px;
   cursor: pointer;
   transition: all 0.3s;
   background: white;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 6px 0 rgba(0, 0, 0, 0.06);
   position: relative;
   display: flex;
   flex-direction: column;
-}
-
-.student-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.15);
-  border-color: #409eff;
-}
-
-.student-card.selected {
-  border-color: #409eff;
-  background-color: #ecf5ff;
-}
-
-.selection-indicator {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  color: #409eff;
-  font-size: 16px;
-}
-
-.student-info {
-  flex: 1;
+  min-height: 100px;
 }
 
 .student-info .student-name {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   color: #303133;
+  line-height: 1.2;
 }
 
 .student-info .student-id {
-  font-size: 14px;
+  font-size: 11px;
   color: #909399;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+  line-height: 1.2;
 }
 
 .student-info .student-points {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  margin-top: auto;
 }
 
 .points-label {
-  font-size: 14px;
+  font-size: 11px;
   color: #606266;
 }
 
 .points-value {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
 }
 

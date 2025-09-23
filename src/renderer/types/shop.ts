@@ -3,7 +3,6 @@ export interface ShopItem {
   name: string
   description: string
   price: number
-  category: string
   image_url?: string
   stock: number // -1表示无限库存
   sold_count: number

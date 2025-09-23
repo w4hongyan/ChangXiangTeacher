@@ -7,44 +7,11 @@
       label-width="100px"
       @submit.prevent="handleSubmit"
     >
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="商品名称" prop="name">
-            <el-input
-              v-model="formData.name"
-              placeholder="请输入商品名称"
-              maxlength="50"
-              show-word-limit
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="商品分类" prop="category">
-            <el-select
-              v-model="formData.category"
-              placeholder="请选择商品分类"
-              style="width: 100%"
-              filterable
-              allow-create
-            >
-              <el-option
-                v-for="category in categories"
-                :key="category.id"
-                :label="category.name"
-                :value="category.name"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <el-form-item label="商品描述" prop="description">
+      <el-form-item label="商品名称" prop="name">
         <el-input
-          v-model="formData.description"
-          type="textarea"
-          :rows="3"
-          placeholder="请输入商品描述"
-          maxlength="200"
+          v-model="formData.name"
+          placeholder="请输入商品名称"
+          maxlength="50"
           show-word-limit
         />
       </el-form-item>
@@ -57,6 +24,7 @@
               :min="0"
               :max="99999"
               :precision="0"
+              controls-position="right"
               style="width: 100%"
             />
             <div class="form-tip">单位：积分</div>
@@ -69,6 +37,7 @@
               :min="-1"
               :max="99999"
               :precision="0"
+              controls-position="right"
               style="width: 100%"
             />
             <div class="form-tip">-1表示无限库存</div>
@@ -81,12 +50,29 @@
               :min="0"
               :max="9999"
               :precision="0"
+              controls-position="right"
               style="width: 100%"
             />
             <div class="form-tip">数字越小越靠前</div>
           </el-form-item>
         </el-col>
       </el-row>
+
+      <el-form-item label="商品分类" prop="category">
+        <el-select
+          v-model="formData.category"
+          placeholder="请选择商品分类"
+          style="width: 100%"
+          filterable
+        >
+          <el-option
+            v-for="category in categories"
+            :key="category.id"
+            :label="category.name"
+            :value="category.name"
+          />
+        </el-select>
+      </el-form-item>
 
       <el-form-item label="商品图片">
         <div class="image-upload">
@@ -118,45 +104,7 @@
         </div>
       </el-form-item>
 
-      <el-form-item label="商品状态">
-        <el-switch
-          v-model="formData.is_active"
-          active-text="上架"
-          inactive-text="下架"
-        />
-      </el-form-item>
 
-      <el-form-item label="商品属性">
-        <div class="attributes-editor">
-          <div
-            v-for="(attr, index) in attributes"
-            :key="index"
-            class="attribute-item"
-          >
-            <el-input
-              v-model="attr.key"
-              placeholder="属性名"
-              style="width: 120px"
-            />
-            <el-input
-              v-model="attr.value"
-              placeholder="属性值"
-              style="width: 200px"
-            />
-            <el-button
-              size="small"
-              type="danger"
-              @click="removeAttribute(index)"
-            >
-              <el-icon><Delete /></el-icon>
-            </el-button>
-          </div>
-          <el-button size="small" @click="addAttribute">
-            <el-icon><Plus /></el-icon>
-            添加属性
-          </el-button>
-        </div>
-      </el-form-item>
     </el-form>
 
     <div class="form-actions">
@@ -204,17 +152,14 @@ const formData = ref<ShopItemFormData>({
   attributes: {}
 })
 
-// 属性编辑器
-const attributes = ref<Array<{ key: string; value: string }>>([])
+// 属性编辑器（已注释掉，因为未使用且可能导致克隆问题）
+// const attributes = ref<Array<{ key: string; value: string }>>([])
 
 // 表单验证规则
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入商品名称', trigger: 'blur' },
     { min: 1, max: 50, message: '商品名称长度在 1 到 50 个字符', trigger: 'blur' }
-  ],
-  category: [
-    { required: true, message: '请选择商品分类', trigger: 'change' }
   ],
   price: [
     { required: true, message: '请输入兑换价格', trigger: 'blur' },
@@ -238,19 +183,13 @@ const initFormData = () => {
       name: props.item.name,
       description: props.item.description || '',
       price: props.item.price,
-      category: props.item.category,
+      category: '',
       image_url: props.item.image_url || '',
       stock: props.item.stock,
       is_active: props.item.is_active,
       sort_order: props.item.sort_order,
       attributes: props.item.attributes || {}
     }
-    
-    // 初始化属性编辑器
-    attributes.value = Object.entries(props.item.attributes || {}).map(([key, value]) => ({
-      key,
-      value: String(value)
-    }))
   } else {
     formData.value = {
       name: '',
@@ -263,7 +202,6 @@ const initFormData = () => {
       sort_order: 0,
       attributes: {}
     }
-    attributes.value = []
   }
 }
 
@@ -307,37 +245,31 @@ const handleImageSelect = (event: Event) => {
   reader.readAsDataURL(file)
 }
 
-// 添加属性
-const addAttribute = () => {
-  attributes.value.push({ key: '', value: '' })
-}
-
-// 删除属性
-const removeAttribute = (index: number) => {
-  attributes.value.splice(index, 1)
-}
-
 // 处理提交
 const handleSubmit = async () => {
   if (!formRef.value) return
 
   try {
     await formRef.value.validate()
-    
-    // 处理属性数据
-    const attributesObj: Record<string, string> = {}
-    attributes.value.forEach(attr => {
-      if (attr.key && attr.value) {
-        attributesObj[attr.key] = attr.value
-      }
-    })
-    formData.value.attributes = attributesObj
+
+    // 创建一个深度克隆的纯JavaScript对象，确保所有数据都可被IPC克隆
+    const formDataCopy = JSON.parse(JSON.stringify({
+      name: formData.value.name,
+      description: formData.value.description,
+      price: formData.value.price,
+      category: formData.value.category,
+      image_url: formData.value.image_url,
+      stock: formData.value.stock,
+      is_active: formData.value.is_active,
+      sort_order: formData.value.sort_order,
+      attributes: formData.value.attributes
+    }))
 
     if (isEdit.value && props.item) {
-      await shopStore.updateItem(props.item.id, formData.value)
+      await shopStore.updateItem(props.item.id, formDataCopy)
       ElMessage.success('商品更新成功')
     } else {
-      await shopStore.createItem(formData.value)
+      await shopStore.createItem(formDataCopy)
       ElMessage.success('商品创建成功')
     }
     

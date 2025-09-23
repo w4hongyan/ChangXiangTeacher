@@ -82,7 +82,7 @@ export function setupShopHandlers(db: DatabaseManager) {
   // 创建商品
   const handleCreateItem = async (_: IpcMainInvokeEvent, data: ShopItemFormData) => {
     try {
-      if (!data.name || !data.category || data.price < 0) {
+      if (!data.name || data.price < 0) {
         return { success: false, error: '商品信息不完整' }
       }
 
@@ -96,7 +96,7 @@ export function setupShopHandlers(db: DatabaseManager) {
         data.name,
         data.description || '',
         data.price,
-        data.category,
+        data.category || '',
         data.image_url || null,
         data.stock,
         data.is_active,
@@ -105,10 +105,20 @@ export function setupShopHandlers(db: DatabaseManager) {
       ]
 
       const result = await db.run(insertQuery, params)
-      const itemId = result.lastInsertRowid
+      let itemId = result.lastInsertRowid
 
       if (!itemId) {
-        throw new Error('无法获取新创建的商品ID')
+        // 如果无法获取ID，尝试通过其他方式查找刚创建的商品
+        console.warn('无法直接获取lastInsertRowid，尝试通过查询获取最新商品ID')
+        const lastItem = await db.get(
+          'SELECT id FROM shop_items WHERE name = ? AND category = ? ORDER BY created_at DESC LIMIT 1',
+          [data.name, data.category]
+        )
+        if (lastItem && lastItem.id) {
+          itemId = lastItem.id
+        } else {
+          throw new Error('无法获取新创建的商品ID')
+        }
       }
 
       const newItem = await db.get('SELECT * FROM shop_items WHERE id = ?', [Number(itemId)])
@@ -139,10 +149,7 @@ export function setupShopHandlers(db: DatabaseManager) {
         updateFields.push('price = ?')
         updateValues.push(data.price)
       }
-      if (data.category !== undefined) {
-        updateFields.push('category = ?')
-        updateValues.push(data.category)
-      }
+
       if (data.image_url !== undefined) {
         updateFields.push('image_url = ?')
         updateValues.push(data.image_url)
@@ -468,18 +475,6 @@ export function setupShopHandlers(db: DatabaseManager) {
         LIMIT 10
       `)
 
-      // 分类统计
-      const categoryStats = await db.all(`
-        SELECT 
-          i.category,
-          COUNT(DISTINCT i.id) as item_count,
-          COUNT(e.id) as exchange_count
-        FROM shop_items i
-        LEFT JOIN shop_exchanges e ON i.id = e.item_id AND e.status != 'rejected'
-        GROUP BY i.category
-        ORDER BY exchange_count DESC
-      `)
-
       const stats: ShopStats = {
         total_items: totalItems?.count || 0,
         active_items: activeItems?.count || 0,
@@ -487,7 +482,7 @@ export function setupShopHandlers(db: DatabaseManager) {
         pending_exchanges: pendingExchanges?.count || 0,
         total_points_spent: totalPointsSpent?.total || 0,
         popular_items: popularItems || [],
-        category_stats: categoryStats || []
+        category_stats: []
       }
       
       return { success: true, data: stats }

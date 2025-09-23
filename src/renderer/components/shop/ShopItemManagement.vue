@@ -15,22 +15,7 @@
             </template>
           </el-input>
         </el-col>
-        <el-col :span="4">
-          <el-select
-            v-model="selectedCategory"
-            placeholder="选择分类"
-            clearable
-            @change="handleCategoryChange"
-          >
-            <el-option label="全部分类" value="" />
-            <el-option
-              v-for="category in categories"
-              :key="category.id"
-              :label="category.name"
-              :value="category.name"
-            />
-          </el-select>
-        </el-col>
+
         <el-col :span="4">
           <el-select
             v-model="selectedStatus"
@@ -102,7 +87,6 @@
           <p class="item-description">{{ item.description || '暂无描述' }}</p>
           
           <div class="item-meta">
-            <el-tag size="small" type="info">{{ item.category }}</el-tag>
             <span class="stock-info">
               库存: {{ item.stock === -1 ? '无限' : item.stock }}
             </span>

@@ -61,9 +61,7 @@ export const useShopStore = defineStore('shop', {
     // 获取活跃商品
     activeItems: (state) => state.items.filter(item => item.is_active),
     
-    // 按分类获取商品
-    getItemsByCategory: (state) => (category: string) => 
-      state.items.filter(item => item.category === category && item.is_active),
+
     
     // 获取热门商品
     popularItems: (state) => 
